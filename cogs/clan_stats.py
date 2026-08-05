@@ -19,6 +19,7 @@ from discord import app_commands
 from discord.ext import commands
 
 import config
+from utils import enviar_en_paginas
 
 ROLES_ES = {
     "member": "Miembro",
@@ -32,8 +33,6 @@ ROLES_ES = {
 PESO_DONACIONES = 0.4
 PESO_GUERRA = 0.3
 PESO_CAPITAL = 0.3
-
-LIMITE_CARACTERES = 1900  # margen bajo el límite de 2000 de Discord por mensaje
 
 
 def rol_legible(rol) -> str:
@@ -57,16 +56,6 @@ class ClanStats(commands.Cog):
     def coc_client(self) -> coc.Client:
         return self.bot.coc_client
 
-    async def _enviar_en_paginas(self, interaction: discord.Interaction, lineas: list[str]):
-        bloque = ""
-        for linea in lineas:
-            if len(bloque) + len(linea) + 1 > LIMITE_CARACTERES:
-                await interaction.followup.send(bloque)
-                bloque = ""
-            bloque += linea + "\n"
-        if bloque:
-            await interaction.followup.send(bloque)
-
     @app_commands.command(name="miembros", description="Lista todos los miembros del clan con sus stats básicos")
     async def miembros(self, interaction: discord.Interaction):
         await interaction.response.defer()
@@ -79,7 +68,7 @@ class ClanStats(commands.Cog):
                 f"TH{m.town_hall} · 🏆{m.trophies} · 🎁{m.donations} dadas / {m.received} recibidas"
             )
 
-        await self._enviar_en_paginas(interaction, lineas)
+        await enviar_en_paginas(interaction, lineas)
 
     @app_commands.command(name="donaciones", description="Ranking de donaciones del clan (dadas y recibidas)")
     async def donaciones(self, interaction: discord.Interaction):
@@ -92,7 +81,7 @@ class ClanStats(commands.Cog):
             ratio = f"{m.donations / m.received:.1f}x" if m.received else "—"
             lineas.append(f"`{i:>2}.` **{m.name}** — {m.donations} dadas / {m.received} recibidas ({ratio})")
 
-        await self._enviar_en_paginas(interaction, lineas)
+        await enviar_en_paginas(interaction, lineas)
 
     @app_commands.command(name="capital", description="Ranking de saqueo de oro de capital del último Raid Weekend")
     async def capital(self, interaction: discord.Interaction):
@@ -117,7 +106,7 @@ class ClanStats(commands.Cog):
                 f"({m.attack_count}/{limite_ataques} ataques)"
             )
 
-        await self._enviar_en_paginas(interaction, lineas)
+        await enviar_en_paginas(interaction, lineas)
 
     @app_commands.command(name="guerra", description="Estado de la guerra actual del clan")
     async def guerra(self, interaction: discord.Interaction):
@@ -128,6 +117,11 @@ class ClanStats(commands.Cog):
             await interaction.followup.send(
                 "El registro de guerra de este clan está en privado. "
                 "Actívalo in-game en Ajustes del clan para poder ver esto."
+            )
+            return
+        except coc.HTTPException:
+            await interaction.followup.send(
+                "La API tuvo un error consultando la guerra (pasa seguido justo en transiciones de ronda de CWL). Intenta de nuevo en un rato."
             )
             return
 
@@ -146,7 +140,7 @@ class ClanStats(commands.Cog):
                 f"ataques · ⭐{m.star_count} · {mejor_destruccion:.0f}% mejor destrucción"
             )
 
-        await self._enviar_en_paginas(interaction, lineas)
+        await enviar_en_paginas(interaction, lineas)
 
     @app_commands.command(
         name="puntaje",
@@ -167,8 +161,8 @@ class ClanStats(commands.Cog):
                 for m in guerra_actual.clan.members:
                     if m.tag in estrellas_guerra:
                         estrellas_guerra[m.tag] = m.star_count
-        except coc.PrivateWarLog:
-            pass  # sin este componente, pero seguimos con el resto
+        except coc.HTTPException:
+            pass  # sin este componente (registro privado o error transitorio de CWL), pero seguimos con el resto
 
         raid_log = await self.coc_client.get_raid_log(config.CLAN_TAG, limit=1)
         entradas = list(raid_log)
@@ -202,7 +196,7 @@ class ClanStats(commands.Cog):
                 f"(🎁{donaciones[tag]} · ⭐{estrellas_guerra[tag]} · 🏰{oro_capital[tag]})"
             )
 
-        await self._enviar_en_paginas(interaction, lineas)
+        await enviar_en_paginas(interaction, lineas)
 
 
 async def setup(bot: commands.Bot):

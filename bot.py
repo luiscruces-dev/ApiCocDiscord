@@ -1,10 +1,3 @@
-"""
-Punto de entrada del bot.
-
-Crea el cliente de la API de Clash of Clans (coc.py, apuntando al proxy de
-RoyaleAPI para no depender de tener una IP fija) y el bot de Discord, carga
-los comandos y los sincroniza.
-"""
 import logging
 import sys
 
@@ -14,10 +7,6 @@ from discord.ext import commands
 
 import config
 
-# En Windows la consola no siempre usa UTF-8 por defecto, y nombres de clan/
-# jugador con caracteres especiales (emojis, símbolos, otros alfabetos) son
-# muy comunes en Clash of Clans. Sin esto, un simple log.info podía tirar
-# abajo el bot con un UnicodeEncodeError.
 for stream in (sys.stdout, sys.stderr):
     if hasattr(stream, "reconfigure"):
         stream.reconfigure(encoding="utf-8")
@@ -39,6 +28,7 @@ class ClanBot(commands.Bot):
         log.info("Cliente de Clash of Clans conectado (base_url=%s)", config.COC_BASE_URL)
 
         await self.load_extension("cogs.clan_stats")
+        await self.load_extension("cogs.historial_guerras")
 
         if config.GUILD_ID:
             guild = discord.Object(id=int(config.GUILD_ID))
