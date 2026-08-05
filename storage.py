@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime, timezone
 
 DB_PATH = "clan_stats.db"
 
@@ -23,6 +24,20 @@ CREATE TABLE IF NOT EXISTS ataques (
     destruction REAL,
     enemy_th INTEGER,
     es_defensa INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS clan_games_sesiones (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    inicio_fecha TEXT NOT NULL,
+    cierre_fecha TEXT
+);
+
+CREATE TABLE IF NOT EXISTS clan_games_snapshots (
+    sesion_id INTEGER NOT NULL REFERENCES clan_games_sesiones(id),
+    momento TEXT NOT NULL,
+    player_tag TEXT NOT NULL,
+    player_name TEXT NOT NULL,
+    puntos INTEGER NOT NULL
 );
 """
 
@@ -116,3 +131,61 @@ def stats_por_jugador(con) -> dict:
                 else:
                     s["igual"] += 1
     return stats
+
+
+def sesion_clan_games_abierta(con):
+    """id de la sesion abierta (sin cerrar todavia), o None si no hay ninguna."""
+    fila = con.execute(
+        "SELECT id FROM clan_games_sesiones WHERE cierre_fecha IS NULL ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    return fila[0] if fila else None
+
+
+def abrir_sesion_clan_games(con) -> int:
+    cur = con.execute(
+        "INSERT INTO clan_games_sesiones (inicio_fecha) VALUES (?)",
+        (datetime.now(timezone.utc).isoformat(),),
+    )
+    con.commit()
+    return cur.lastrowid
+
+
+def cerrar_sesion_clan_games(con, sesion_id: int):
+    con.execute(
+        "UPDATE clan_games_sesiones SET cierre_fecha = ? WHERE id = ?",
+        (datetime.now(timezone.utc).isoformat(), sesion_id),
+    )
+    con.commit()
+
+
+def guardar_snapshot_clan_games(con, sesion_id: int, momento: str, jugadores):
+    """jugadores: lista de tuplas (tag, nombre, puntos)."""
+    con.executemany(
+        "INSERT INTO clan_games_snapshots (sesion_id, momento, player_tag, player_name, puntos) "
+        "VALUES (?, ?, ?, ?, ?)",
+        [(sesion_id, momento, tag, nombre, puntos) for tag, nombre, puntos in jugadores],
+    )
+    con.commit()
+
+
+def resultado_clan_games(con, sesion_id: int):
+    inicio = {
+        tag: puntos
+        for tag, puntos in con.execute(
+            "SELECT player_tag, puntos FROM clan_games_snapshots WHERE sesion_id = ? AND momento = 'inicio'",
+            (sesion_id,),
+        )
+    }
+    cierre = con.execute(
+        "SELECT player_tag, player_name, puntos FROM clan_games_snapshots WHERE sesion_id = ? AND momento = 'cierre'",
+        (sesion_id,),
+    ).fetchall()
+
+    resultados = []
+    for tag, nombre, puntos_cierre in cierre:
+        if tag in inicio:
+            resultados.append((nombre, puntos_cierre - inicio[tag]))
+        else:
+            # se unio al clan a mitad del evento, no le alcanzamos a sacar la foto de inicio
+            resultados.append((nombre, None))
+    return resultados
