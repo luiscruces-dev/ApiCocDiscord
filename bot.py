@@ -6,12 +6,21 @@ RoyaleAPI para no depender de tener una IP fija) y el bot de Discord, carga
 los comandos y los sincroniza.
 """
 import logging
+import sys
 
 import coc
 import discord
 from discord.ext import commands
 
 import config
+
+# En Windows la consola no siempre usa UTF-8 por defecto, y nombres de clan/
+# jugador con caracteres especiales (emojis, símbolos, otros alfabetos) son
+# muy comunes en Clash of Clans. Sin esto, un simple log.info podía tirar
+# abajo el bot con un UnicodeEncodeError.
+for stream in (sys.stdout, sys.stderr):
+    if hasattr(stream, "reconfigure"):
+        stream.reconfigure(encoding="utf-8")
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("apicocdiscord")
