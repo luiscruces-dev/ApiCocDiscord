@@ -1,6 +1,6 @@
 import discord
 
-LIMITE_CARACTERES = 1900  # margen bajo el limite de 2000 de Discord por mensaje
+LIMITE_CARACTERES = 1900  # margen bajo el limite de 2000 de Discord por mensaje por si acasito
 
 
 async def enviar_en_paginas(interaction: discord.Interaction, lineas: list[str]):

@@ -1,20 +1,20 @@
-# Bueno, aca el bollo es este: le podes preguntar a la API "cuantos puntos
-# de Clan Games lleva este jugador" y te va a responder un numero gigante
-# tipo 280,000 — porque ese numero es TODO LO QUE HA GANADO EN SU VIDA,
+#aca el rollo es este, le podes preguntar a la API cuantos puntos
+# del juego del clan lleva este jugador te va a responder un numero gigante
+# tipo 280,000 porque ese numero es TODO LO QUE HA GANADO EN SU VIDA,
 # sumando cada edicion del evento desde que existe la cuenta. La API no
-# tiene forma de decirte "cuanto llevas EN ESTE evento que esta corriendo
-# ahora mismo" — ese dato simplemente no existe como tal en ningun lado.
+# tiene forma de decirnos cuanto llevas EN ESTE evento que esta corriendo
+# ahora mismo ese dato simplemente no existe como tal en ningun lado.
 #
 # La buena noticia es que ese numero nunca baja, solo sube. Entonces el
-# truco es medio tonto pero funciona perfecto: le sacamos una foto a ese
+# truco es medio tonto pero funciona, le sacamos una foto a ese
 # numero de cada jugador justo cuando arranca el evento (/clangames iniciar),
 # y le sacamos otra foto cuando termina (/clangames cerrar). Lo que gano
 # cada quien en el medio es ni mas ni menos que: foto_final - foto_inicial.
 # Restas y ya, te cuadra perfecto.
 #
-# El unico costo de esto: alguien (cualquier colider) le tiene que avisar
+# El unico costo de esto es que alguien (cualquier colider) le tiene que avisar
 # al bot cuando arranca y cuando termina el evento, porque la API tampoco
-# nos dice eso — no hay forma de que el bot lo adivine solo.
+# nos dice eso no hay forma de que el bot lo adivine solo, o bueno a mi no se me ocurrio
 import coc
 import discord
 from discord import app_commands

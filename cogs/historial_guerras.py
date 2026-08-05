@@ -72,8 +72,7 @@ class HistorialGuerras(commands.Cog):
 
         lineas = ["**Ultimas guerras**\n"]
         for end_time, opp_name, status, team_size, tipo in filas:
-            emoji = {"won": "✅", "lost": "❌", "tie": "🟰"}.get(status, "❔")
-            lineas.append(f"{emoji} vs **{opp_name}** ({team_size}v{team_size}, {tipo}) — {status}")
+            lineas.append(f"vs **{opp_name}** ({team_size}v{team_size}, {tipo}) — {status}")
 
         await enviar_en_paginas(interaction, lineas)
 

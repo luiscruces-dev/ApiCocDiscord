@@ -1,18 +1,3 @@
-"""
-Comandos para ver stats del clan y ayudar a repartir recompensas de forma
-justa, usando la API oficial de Clash of Clans.
-
-Ojo con las limitaciones reales de la API (confirmadas en el server de
-Discord "Clash API Developers"):
-  - Es de solo lectura: ningún comando de acá puede entregar recompensas
-    dentro del juego, solo te dice quién se las merece. Repartirlas (in-game,
-    con un rol de Discord, etc.) lo sigues haciendo tú.
-  - No existe endpoint de puntos de Clan Games: para eso habría que guardar
-    una "foto" de los achievements de cada jugador al inicio del evento y
-    otra al final, y restar. No está implementado en esta primera versión.
-  - Los datos de guerra requieren que el registro de guerra del clan esté
-    en público (Ajustes del clan, in-game).
-"""
 import coc
 import discord
 from discord import app_commands
@@ -29,7 +14,7 @@ ROLES_ES = {
 }
 
 # Pesos del "puntaje de mérito" combinado en /puntaje. Son relativos entre sí
-# (no tienen que sumar 1) — ajústalos a lo que tu clan considere justo.
+# (no tienen que sumar 1)
 PESO_DONACIONES = 0.4
 PESO_GUERRA = 0.3
 PESO_CAPITAL = 0.3
@@ -65,7 +50,7 @@ class ClanStats(commands.Cog):
         for m in sorted(clan.members, key=lambda m: -m.trophies):
             lineas.append(
                 f"`{m.clan_rank:>2}` **{m.name}** ({rol_legible(m.role)}) — "
-                f"TH{m.town_hall} · 🏆{m.trophies} · 🎁{m.donations} dadas / {m.received} recibidas"
+                f"TH{m.town_hall} · Trofeos: {m.trophies} · Donaciones: {m.donations} dadas / {m.received} recibidas"
             )
 
         await enviar_en_paginas(interaction, lineas)
@@ -137,7 +122,7 @@ class ClanStats(commands.Cog):
             mejor_destruccion = max((a.destruction for a in m.attacks), default=0)
             lineas.append(
                 f"`{m.map_position:>2}.` **{m.name}** — {len(m.attacks)}/{guerra_actual.attacks_per_member} "
-                f"ataques · ⭐{m.star_count} · {mejor_destruccion:.0f}% mejor destrucción"
+                f"ataques · Estrellas: {m.star_count} · {mejor_destruccion:.0f}% mejor destrucción"
             )
 
         await enviar_en_paginas(interaction, lineas)
@@ -193,7 +178,7 @@ class ClanStats(commands.Cog):
         for i, (tag, score) in enumerate(ranking, start=1):
             lineas.append(
                 f"`{i:>2}.` **{nombres[tag]}** — {score:.1f} pts "
-                f"(🎁{donaciones[tag]} · ⭐{estrellas_guerra[tag]} · 🏰{oro_capital[tag]})"
+                f"(Donaciones: {donaciones[tag]} · Estrellas: {estrellas_guerra[tag]} · Capital: {oro_capital[tag]})"
             )
 
         await enviar_en_paginas(interaction, lineas)

@@ -1,11 +1,3 @@
-"""
-Script suelto para ver datos del clan directo en la consola, SIN necesitar
-el bot de Discord configurado. Util para probar que la API/proxy/tag
-funcionan antes de meter Discord en la ecuacion, o para debug rapido.
-
-Uso:
-    .venv/Scripts/python.exe probar_conexion.py
-"""
 import asyncio
 import os
 import sys
@@ -13,8 +5,8 @@ import sys
 import coc
 from dotenv import load_dotenv
 
-# En Windows la consola no siempre usa UTF-8 por defecto, y nombres de clan/
-# jugador con caracteres especiales son muy comunes en Clash of Clans.
+# Gracias Cris por hacerme crashear el bot por los caracteres especiales de tu nombre
+
 for stream in (sys.stdout, sys.stderr):
     if hasattr(stream, "reconfigure"):
         stream.reconfigure(encoding="utf-8")
