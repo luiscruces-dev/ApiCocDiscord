@@ -12,6 +12,7 @@ API oficial de Supercell vía [coc.py](https://github.com/mathsman5133/coc.py).
 - `/guerra` — estado de la guerra actual, ataques usados, estrellas y % de destrucción por miembro.
 - `/puntaje` — ranking combinado (donaciones + guerra + capital) pensado para decidir reparto de recompensas. Los pesos de cada categoría están al inicio de [cogs/clan_stats.py](cogs/clan_stats.py) (`PESO_DONACIONES`, `PESO_GUERRA`, `PESO_CAPITAL`) — cámbialos a lo que tu clan considere justo.
 - `/comandos` — lista todos los comandos disponibles del bot (se genera solo, no hay que mantenerla a mano).
+- `/clangames iniciar` / `/clangames cerrar` — miden los puntos de Clan Games a mano (ver más abajo). También se disparan solos: un loop de fondo revisa la fecha (calendario fijo 22-28 de cada mes, UTC) y abre/cierra la medición automáticamente, avisando en el canal que configures con `CLAN_GAMES_CHANNEL_ID` en `.env`.
 
 ## Setup
 

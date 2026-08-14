@@ -21,6 +21,7 @@ COC_API_TOKEN = require_env("COC_API_TOKEN")
 CLAN_TAG = require_env("CLAN_TAG")
 
 GUILD_ID = os.getenv("GUILD_ID") or None
+CLAN_GAMES_CHANNEL_ID = os.getenv("CLAN_GAMES_CHANNEL_ID") or None
 
 # Proxy de RoyaleAPI por defecto soluciona el problema de IP dinámica.
 # Docs https://docs.royaleapi.com/proxy.html por si acaso
