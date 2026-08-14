@@ -1,7 +1,8 @@
 import sqlite3
 from datetime import datetime, timezone
+from pathlib import Path
 
-DB_PATH = "clan_stats.db"
+DB_PATH = str(Path(__file__).resolve().parent / "clan_stats.db")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS wars (
