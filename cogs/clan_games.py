@@ -31,6 +31,7 @@ from discord import app_commands
 from discord.ext import commands, tasks
 
 import config
+import reputacion
 import storage
 from utils import enviar_en_paginas, enviar_en_paginas_canal
 
@@ -79,7 +80,8 @@ class ClanGames(commands.Cog):
         storage.cerrar_sesion_clan_games(self.db, sesion_id)
 
         resultados = storage.resultado_clan_games(self.db, sesion_id)
-        resultados.sort(key=lambda r: (r[1] is None, -(r[1] or 0)))
+        resultados.sort(key=lambda r: (r[2] is None, -(r[2] or 0)))
+        storage.registrar_reputacion_clan_games(self.db, reputacion.temporada_actual(), resultados)
         return resultados
 
     async def iniciar(self, interaction: discord.Interaction):
@@ -109,7 +111,7 @@ class ClanGames(commands.Cog):
 
     def _lineas_resultado(self, resultados) -> list[str]:
         lineas = ["**Resultado de Clan Games**\n"]
-        for nombre, puntos in resultados:
+        for _tag, nombre, puntos in resultados:
             if puntos is None:
                 lineas.append(f"**{nombre}** — se unió a mitad del evento, no hay punto de partida para comparar")
             else:
