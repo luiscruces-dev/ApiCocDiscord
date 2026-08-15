@@ -13,24 +13,10 @@ ROLES_ES = {
     "leader": "Líder",
 }
 
-# Pesos del "puntaje de mérito" combinado en /puntaje. Son relativos entre sí
-# (no tienen que sumar 1)
-PESO_DONACIONES = 0.4
-PESO_GUERRA = 0.3
-PESO_CAPITAL = 0.3
-
 
 def rol_legible(rol) -> str:
     crudo = str(getattr(rol, "value", rol))
     return ROLES_ES.get(crudo, crudo)
-
-
-def normalizar(valores: dict) -> dict:
-    """Escala un diccionario tag->valor a 0-1 según el máximo del grupo."""
-    maximo = max(valores.values(), default=0)
-    if not maximo:
-        return {tag: 0.0 for tag in valores}
-    return {tag: v / maximo for tag, v in valores.items()}
 
 
 class ClanStats(commands.Cog):
@@ -123,62 +109,6 @@ class ClanStats(commands.Cog):
             lineas.append(
                 f"`{m.map_position:>2}.` **{m.name}** — {len(m.attacks)}/{guerra_actual.attacks_per_member} "
                 f"ataques · Estrellas: {m.star_count} · {mejor_destruccion:.0f}% mejor destrucción"
-            )
-
-        await enviar_en_paginas(interaction, lineas)
-
-    @app_commands.command(
-        name="puntaje",
-        description="Ranking combinado (donaciones + guerra + capital) para repartir recompensas de forma justa",
-    )
-    async def puntaje(self, interaction: discord.Interaction):
-        await interaction.response.defer()
-        clan = await self.coc_client.get_clan(config.CLAN_TAG)
-
-        nombres = {m.tag: m.name for m in clan.members}
-        donaciones = {m.tag: m.donations for m in clan.members}
-        estrellas_guerra = {tag: 0 for tag in nombres}
-        oro_capital = {tag: 0 for tag in nombres}
-
-        try:
-            guerra_actual = await self.coc_client.get_current_war(config.CLAN_TAG)
-            if guerra_actual and guerra_actual.state != "notInWar":
-                for m in guerra_actual.clan.members:
-                    if m.tag in estrellas_guerra:
-                        estrellas_guerra[m.tag] = m.star_count
-        except coc.HTTPException:
-            pass  # sin este componente (registro privado o error transitorio de CWL), pero seguimos con el resto
-
-        raid_log = await self.coc_client.get_raid_log(config.CLAN_TAG, limit=1)
-        entradas = list(raid_log)
-        if entradas:
-            for m in entradas[0].members:
-                if m.tag in oro_capital:
-                    oro_capital[m.tag] = m.capital_resources_looted
-
-        n_don = normalizar(donaciones)
-        n_gue = normalizar(estrellas_guerra)
-        n_cap = normalizar(oro_capital)
-
-        puntajes = {
-            tag: 100
-            * (
-                PESO_DONACIONES * n_don.get(tag, 0)
-                + PESO_GUERRA * n_gue.get(tag, 0)
-                + PESO_CAPITAL * n_cap.get(tag, 0)
-            )
-            for tag in nombres
-        }
-        ranking = sorted(puntajes.items(), key=lambda kv: -kv[1])
-
-        lineas = [
-            f"**Puntaje de mérito — {clan.name}** "
-            f"(donaciones {PESO_DONACIONES:.0%} · guerra {PESO_GUERRA:.0%} · capital {PESO_CAPITAL:.0%})\n"
-        ]
-        for i, (tag, score) in enumerate(ranking, start=1):
-            lineas.append(
-                f"`{i:>2}.` **{nombres[tag]}** — {score:.1f} pts "
-                f"(Donaciones: {donaciones[tag]} · Estrellas: {estrellas_guerra[tag]} · Capital: {oro_capital[tag]})"
             )
 
         await enviar_en_paginas(interaction, lineas)
