@@ -57,6 +57,36 @@ class Reputacion(commands.Cog):
 
         await enviar_en_paginas(interaction, lineas)
 
+    @app_commands.command(name="ayudarep", description="Explica como funciona el sistema de reputacion")
+    async def ayudarep(self, interaction: discord.Interaction):
+        lineas = [
+            "**Como funciona la reputacion**\n",
+            "Cada miembro acumula puntos, que pueden sumar o restar, por guerra, donaciones, "
+            "capital y clan games. Se mide por temporada (se reinicia con la temporada oficial "
+            "del juego), pero el historico de temporadas pasadas queda guardado.",
+            "",
+            "Guerra es, por lejos, la categoria que mas pesa. Las demas suman, pero no compiten con guerra.",
+            "",
+            "**Reglas de guerra**",
+            "- Atacar hacia arriba vale mas que atacar igual, y atacar igual vale mas que atacar hacia abajo.",
+            "- No sacar 3 estrellas en un ataque facil (mismo TH o uno mas bajo) resta puntos, y castiga "
+            "mas fuerte mientras mas facil deberia haber sido.",
+            "- Atacar hacia arriba y no lograr 3 estrellas casi no castiga: el intento en si ya vale.",
+            "- No usar el ataque de guerra es peor que atacar y fallar: es la falta mas grave del sistema.",
+            "- Defender bien tambien suma, aunque poco: aguantar a alguien de un TH mas alto sin dejarle "
+            "sacar el pleno da un plus chico. Defender mal nunca resta.",
+            f"- La guerra de liga (CWL) pesa {round((reputacion.PESO_GUERRA['liga'] - 1) * 100)}% mas que una guerra normal.",
+            "",
+            "**Otras categorias**",
+            "- Donaciones: puntos segun lo donado en la temporada.",
+            "- Capital: puntos por oro saqueado en los Raid Weekends, con penalizacion si se dejan "
+            "ataques de capital sin usar.",
+            "- Clan Games: puntos segun lo aportado en el evento del mes.",
+            "",
+            "Usa `/reputacion` para ver el ranking de la temporada actual.",
+        ]
+        await enviar_en_paginas(interaction, lineas)
+
     @tasks.loop(hours=1)
     async def sincronizar_donaciones(self):
         # las donaciones de la API ya son el acumulado de la temporada en
