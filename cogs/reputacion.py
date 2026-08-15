@@ -59,6 +59,7 @@ class Reputacion(commands.Cog):
 
     @app_commands.command(name="ayudarep", description="Explica como funciona el sistema de reputacion")
     async def ayudarep(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         lineas = [
             "**Como funciona la reputacion**\n",
             "Cada miembro acumula puntos, que pueden sumar o restar, por guerra, donaciones, "
