@@ -95,9 +95,9 @@ class HistorialGuerras(commands.Cog):
         for tag, s in ordenados:
             prom_destruccion = s["destruccion_total"] / s["ataques"] if s["ataques"] else 0
             lineas.append(
-                f"**{s['nombre']}** — {s['ataques']} ataques, {s['estrellas_ataque']}⭐ "
-                f"({prom_destruccion:.0f}% destr. prom · TH {s['subio']}↑/{s['igual']}=/{s['bajo']}↓) · "
-                f"defensa: {s['veces_atacado']}x atacado, {s['estrellas_recibidas']}⭐ recibidas"
+                f"**{s['nombre']}** — {s['ataques']} ataques, {s['estrellas_ataque']} estrellas "
+                f"({prom_destruccion:.0f}% destr. prom · TH arriba/igual/abajo: {s['subio']}/{s['igual']}/{s['bajo']}) · "
+                f"defensa: {s['veces_atacado']}x atacado, {s['estrellas_recibidas']} estrellas recibidas"
             )
 
         await enviar_en_paginas(interaction, lineas)
