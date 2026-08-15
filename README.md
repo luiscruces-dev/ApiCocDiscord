@@ -1,8 +1,10 @@
 # ApiCocDiscord
 
 Bot de Discord para ver stats del clan de Clash of Clans y ayudar a repartir
-recompensas de forma justa (donaciones, guerra, Capital Raids), usando la
-API oficial de Supercell vía [coc.py](https://github.com/mathsman5133/coc.py).
+recompensas de forma justa. Lleva historial de guerras, Clan Games y un
+sistema de reputación por temporada (guerra + donaciones + capital + clan
+games combinados), usando la API oficial de Supercell vía
+[coc.py](https://github.com/mathsman5133/coc.py).
 
 ## Comandos
 
@@ -10,9 +12,20 @@ API oficial de Supercell vía [coc.py](https://github.com/mathsman5133/coc.py).
 - `/donaciones` — ranking de donaciones (dadas, recibidas y ratio).
 - `/capital` — ranking de oro saqueado en el último Raid Weekend.
 - `/guerra` — estado de la guerra actual, ataques usados, estrellas y % de destrucción por miembro.
-- `/puntaje` — ranking combinado (donaciones + guerra + capital) pensado para decidir reparto de recompensas. Los pesos de cada categoría están al inicio de [cogs/clan_stats.py](cogs/clan_stats.py) (`PESO_DONACIONES`, `PESO_GUERRA`, `PESO_CAPITAL`) — cámbialos a lo que tu clan considere justo.
+- `/historial` — últimas guerras guardadas por el bot.
+- `/kda` — estadísticas acumuladas de ataque/defensa por jugador, de las guerras guardadas hasta ahora.
+- `/clangames iniciar` / `/clangames cerrar` — miden los puntos de Clan Games a mano (la API solo da el acumulado de toda la vida, no el del evento actual — ver "Limitaciones" más abajo). También se disparan solos: un loop de fondo revisa la fecha (calendario fijo 22-28 de cada mes, UTC) y abre/cierra la medición automáticamente, avisando en el canal que configures con `CLAN_GAMES_CHANNEL_ID` en `.env`.
+- `/reputacion` — ranking de reputación de la temporada actual. La fórmula (pesos, multiplicadores por diferencia de TH, penalizaciones) está en [reputacion.py](reputacion.py).
+- `/ayudarep` — el bot explica en el propio Discord cómo funciona el sistema de reputación.
 - `/comandos` — lista todos los comandos disponibles del bot (se genera solo, no hay que mantenerla a mano).
-- `/clangames iniciar` / `/clangames cerrar` — miden los puntos de Clan Games a mano (ver más abajo). También se disparan solos: un loop de fondo revisa la fecha (calendario fijo 22-28 de cada mes, UTC) y abre/cierra la medición automáticamente, avisando en el canal que configures con `CLAN_GAMES_CHANNEL_ID` en `.env`.
+
+## Persistencia
+
+Guerras, Clan Games y reputación se guardan en `clan_stats.db` (SQLite, se
+crea sola en la carpeta del proyecto la primera vez que corre el bot). Si se
+borra ese archivo se pierde todo el historial y la reputación acumulada de
+las temporadas — no hay forma de reconstruirlo desde la API, así que
+conviene incluirlo en el backup del servidor donde corra el bot.
 
 ## Setup
 
@@ -36,6 +49,7 @@ Copia `.env.example` a `.env` y completa:
 - `DISCORD_TOKEN`, `COC_API_TOKEN` (de los pasos anteriores)
 - `CLAN_TAG` (con el `#`, ej. `#2ABC123XY`)
 - `GUILD_ID` (opcional, recomendado en desarrollo: activa el modo desarrollador en Discord y copia el ID de tu servidor, así los slash commands aparecen al instante en vez de tardar ~1h)
+- `CLAN_GAMES_CHANNEL_ID` (opcional, ID del canal donde el bot avisa cuando abre/cierra la medición automática de Clan Games)
 
 ### 4. Correr
 ```bash
@@ -45,8 +59,8 @@ python bot.py
 ## Limitaciones reales de la API (confirmado en el Discord oficial de la comunidad, `discord.gg/clashapi`)
 
 - **Es 100% de solo lectura.** Ningún comando puede repartir recompensas dentro del juego — solo te dice quién se las merece según los números. La entrega la sigues haciendo tú (in-game, con un rol de Discord, etc.).
-- **No hay endpoint de puntos de Clan Games.** Solo se puede inferir tomando una "foto" de los achievements de cada jugador al inicio y al final del evento y restando. No está implementado en esta primera versión — si lo quieres, es el siguiente paso natural.
-- `/guerra` y `/puntaje` necesitan que el registro de guerra del clan esté en **público** (Ajustes del clan, in-game); si no, avisan en vez de fallar.
+- **No hay endpoint de puntos de Clan Games.** Solo se puede inferir tomando una "foto" de los achievements de cada jugador al inicio y al final del evento y restando — así lo resuelve `/clangames` (ver Comandos).
+- `/guerra`, `/historial`, `/kda` y `/reputacion` necesitan que el registro de guerra del clan esté en **público** (Ajustes del clan, in-game); si no, avisan en vez de fallar.
 - La API cachea las respuestas del lado de Supercell: clan 120s, guerra 120s, CWL 600s, jugador 60s — no tiene sentido consultar más seguido que eso.
 - Rate limit no oficial pero probado por la comunidad: ~30-40 requests/segundo.
 
