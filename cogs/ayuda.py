@@ -21,7 +21,6 @@ class Ayuda(commands.Cog):
     async def _lineas_comandos_wa(self) -> list[str]:
         lineas = ["**Comandos disponibles por acá**\n"]
         lineas += [f"/{nombre}" for nombre in sorted(self.bot.comandos_wa)]
-        lineas.append("\nPara todo lo demás (armar Clan Games, mandar avisos, etc.) hay que usar Discord.")
         return lineas
 
 

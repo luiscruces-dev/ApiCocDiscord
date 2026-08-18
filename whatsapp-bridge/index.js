@@ -183,7 +183,16 @@ app.get("/grupos", autenticar, async (req, res) => {
   }
   try {
     const grupos = await sock.groupFetchAllParticipating();
-    const lista = Object.values(grupos).map((g) => ({ id: g.id, nombre: g.subject }));
+    const lista = Object.values(grupos).map((g) => ({
+      id: g.id,
+      nombre: g.subject,
+      miembros: g.participants?.length,
+      descripcion: g.desc || null,
+      esComunidad: !!g.isCommunity,
+      anuncioDeComunidad: !!g.isCommunityAnnounce,
+      comunidadPadre: g.linkedParent || null,
+      creado: g.creation ? new Date(g.creation * 1000).toISOString() : null,
+    }));
     res.json({ grupos: lista });
   } catch (err) {
     console.error("Error listando grupos:", err);
