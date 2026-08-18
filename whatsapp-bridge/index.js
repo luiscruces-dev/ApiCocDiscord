@@ -110,6 +110,8 @@ app.get("/grupos", autenticar, async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Puente de WhatsApp escuchando en puerto ${PORT}`);
+// Solo localhost: el bot de Discord vive en el mismo servidor, no hace
+// falta (ni conviene) exponer esto a internet.
+app.listen(PORT, "127.0.0.1", () => {
+  console.log(`Puente de WhatsApp escuchando en 127.0.0.1:${PORT}`);
 });
