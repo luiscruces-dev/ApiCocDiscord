@@ -36,7 +36,7 @@ class ClanStats(commands.Cog):
         lineas = [f"**{clan.name}** ({clan.tag}) — {len(clan.members)} miembros\n"]
         for m in sorted(clan.members, key=lambda m: -m.trophies):
             lineas.append(
-                f"`{m.clan_rank:>2}` **{m.name}** ({rol_legible(m.role)}) — "
+                f"`{m.clan_rank:>2}` **{m.name}** ({m.tag}) — {rol_legible(m.role)} · "
                 f"TH{m.town_hall} · Trofeos: {m.trophies} · Donaciones: {m.donations} dadas / {m.received} recibidas"
             )
         return lineas
