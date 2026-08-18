@@ -40,6 +40,7 @@ async function iniciarWhatsApp() {
     if (qr) {
       console.log("\nEscanea este QR desde WhatsApp -> Dispositivos vinculados -> Vincular un dispositivo:\n");
       qrcode.generate(qr, { small: true });
+      console.log("QR_RAW:" + qr);
     }
 
     if (connection === "close") {
