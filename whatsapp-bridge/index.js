@@ -38,8 +38,10 @@ async function manejarMensajeEntrante(msg) {
   const texto = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
   if (!texto || !texto.startsWith("/")) return;
 
-  const nombre = texto.slice(1).trim().split(/\s+/)[0].toLowerCase();
+  const partes = texto.slice(1).trim().split(/\s+/);
+  const nombre = (partes.shift() || "").toLowerCase();
   if (!nombre) return;
+  const argumentos = partes.join(" ");
 
   // Un remitente no puede disparar mas de un comando cada COMANDO_COOLDOWN_MS,
   // para que nadie inunde el grupo insistiendo con el mismo comando.
@@ -65,7 +67,7 @@ async function manejarMensajeEntrante(msg) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${BOT_API_TOKEN}`,
       },
-      body: JSON.stringify({ nombre }),
+      body: JSON.stringify({ nombre, argumentos, remitente }),
     });
     const datos = await resp.json();
     respuesta = resp.ok ? datos.texto : datos.error || "Error desconocido consultando el bot de Discord.";
@@ -75,7 +77,13 @@ async function manejarMensajeEntrante(msg) {
   }
 
   if (sock && conectado) {
-    await sock.sendMessage(GROUP_ID, { text: respuesta }, { quoted: msg });
+    // Si la respuesta del bot trae "@numero" (ej. /recordar etiquetando a
+    // quien vinculo su tag), se arma la lista de menciones para que
+    // WhatsApp lo resalte y le llegue notificacion, no solo texto plano.
+    const menciones = [...new Set(
+      [...respuesta.matchAll(/@(\d{5,15})(?!\d)/g)].map(([, numero]) => `${numero}@s.whatsapp.net`)
+    )];
+    await sock.sendMessage(GROUP_ID, { text: respuesta, mentions: menciones }, { quoted: msg });
   }
 }
 

@@ -6,8 +6,11 @@ esto solo expone esa misma lógica por HTTP para que el puente (Node) la
 pueda pedir.
 
 Cada cog registra sus comandos disponibles en bot.comandos_wa: nombre ->
-función async que devuelve list[str] (las mismas líneas que arma cada
-comando de Discord, antes de paginarlas).
+función async(argumentos: str, remitente: str) -> list[str] (las mismas
+líneas que arma cada comando de Discord, antes de paginarlas). argumentos es
+el resto del texto después del nombre del comando (ej. el tag en
+"/vincular #ABC123"), y remitente es el JID de WhatsApp de quien lo escribió
+— la mayoría de los comandos ignoran ambos.
 """
 import logging
 import re
@@ -45,6 +48,8 @@ def _crear_app(bot) -> web.Application:
             return web.json_response({"error": "Body inválido, esperaba JSON"}, status=400)
 
         nombre = (datos.get("nombre") or "").strip().lower()
+        argumentos = (datos.get("argumentos") or "").strip()
+        remitente = (datos.get("remitente") or "").strip()
         fn = bot.comandos_wa.get(nombre)
         if not fn:
             disponibles = ", ".join(sorted(bot.comandos_wa))
@@ -53,7 +58,7 @@ def _crear_app(bot) -> web.Application:
             )
 
         try:
-            lineas = await fn()
+            lineas = await fn(argumentos, remitente)
         except Exception:
             log.exception("api_interna: error ejecutando comando '%s' pedido desde WhatsApp", nombre)
             return web.json_response({"error": "Error interno ejecutando el comando"}, status=500)

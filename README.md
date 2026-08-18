@@ -23,6 +23,12 @@ WhatsApp configurado (ver "Puente a WhatsApp" más abajo).
 - `/enviarwsp mensaje:` — reenvía un texto al grupo de WhatsApp del clan (requiere el puente de `whatsapp-bridge/`, ver más abajo). Solo para quienes pueden gestionar el servidor.
 - `/comandos` 📱 — lista todos los comandos disponibles del bot (se genera solo, no hay que mantenerla a mano).
 
+Estos tres son exclusivos de WhatsApp (no existen como slash command de Discord, no tendría sentido ahí):
+
+- `/vincular <tag>` — asocia tu número de WhatsApp con tu tag de jugador, para que `/recordar` te pueda etiquetar directo. Única excepción a "solo lectura": no afecta al clan, en el peor caso te vinculás con el tag equivocado y lo corregís mandando el comando de nuevo.
+- `/desvincular` — deshace tu propio vínculo.
+- `/recordar` — durante una guerra activa, lista quién le falta atacar; a quien esté vinculado lo etiqueta con una mención real de WhatsApp (no solo texto).
+
 ## Persistencia
 
 Guerras, Clan Games y reputación se guardan en `clan_stats.db` (SQLite, se

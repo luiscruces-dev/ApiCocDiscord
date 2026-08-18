@@ -31,7 +31,7 @@ class ClanStats(commands.Cog):
     def coc_client(self) -> coc.Client:
         return self.bot.coc_client
 
-    async def _lineas_miembros(self) -> list[str]:
+    async def _lineas_miembros(self, argumentos: str = "", remitente: str = "") -> list[str]:
         clan = await self.coc_client.get_clan(config.CLAN_TAG)
         lineas = [f"**{clan.name}** ({clan.tag}) — {len(clan.members)} miembros\n"]
         for m in sorted(clan.members, key=lambda m: -m.trophies):
@@ -46,7 +46,7 @@ class ClanStats(commands.Cog):
         await interaction.response.defer()
         await enviar_en_paginas(interaction, await self._lineas_miembros())
 
-    async def _lineas_donaciones(self) -> list[str]:
+    async def _lineas_donaciones(self, argumentos: str = "", remitente: str = "") -> list[str]:
         clan = await self.coc_client.get_clan(config.CLAN_TAG)
         ordenados = sorted(clan.members, key=lambda m: -m.donations)
 
@@ -61,7 +61,7 @@ class ClanStats(commands.Cog):
         await interaction.response.defer()
         await enviar_en_paginas(interaction, await self._lineas_donaciones())
 
-    async def _lineas_capital(self) -> list[str]:
+    async def _lineas_capital(self, argumentos: str = "", remitente: str = "") -> list[str]:
         raid_log = await self.coc_client.get_raid_log(config.CLAN_TAG, limit=1)
         entradas = list(raid_log)
         if not entradas:
@@ -87,7 +87,7 @@ class ClanStats(commands.Cog):
         await interaction.response.defer()
         await enviar_en_paginas(interaction, await self._lineas_capital())
 
-    async def _lineas_guerra(self) -> list[str]:
+    async def _lineas_guerra(self, argumentos: str = "", remitente: str = "") -> list[str]:
         try:
             guerra_actual = await self.coc_client.get_current_war(config.CLAN_TAG)
         except coc.PrivateWarLog:

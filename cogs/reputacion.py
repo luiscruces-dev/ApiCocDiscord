@@ -29,7 +29,7 @@ class Reputacion(commands.Cog):
     def coc_client(self) -> coc.Client:
         return self.bot.coc_client
 
-    async def _lineas_reputacion(self) -> list[str]:
+    async def _lineas_reputacion(self, argumentos: str = "", remitente: str = "") -> list[str]:
         temporada = reputacion.temporada_actual()
         resumen = storage.ranking_reputacion(self.db, temporada)
         if not resumen:
@@ -60,7 +60,7 @@ class Reputacion(commands.Cog):
         await interaction.response.defer()
         await enviar_en_paginas(interaction, await self._lineas_reputacion())
 
-    async def _lineas_ayudarep(self) -> list[str]:
+    async def _lineas_ayudarep(self, argumentos: str = "", remitente: str = "") -> list[str]:
         return [
             "**Como funciona la reputacion**\n",
             "Cada miembro acumula puntos, que pueden sumar o restar, por guerra, donaciones, "

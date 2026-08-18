@@ -87,6 +87,16 @@ Por diseño, **solo funcionan los comandos de solo lectura** (los mismos que
 `/clangames iniciar` / `/clangames cerrar`, quedan exclusivos de Discord a
 propósito — así nadie los dispara sin querer escribiendo en el grupo.
 
+La única excepción es `/vincular <tag>`, que asocia el número de quien lo
+escribe con un tag de jugador del clan (y `/desvincular` para deshacerlo).
+Se permite porque vincularse no afecta al clan en nada — en el peor caso
+alguien se vincula con el tag equivocado y lo corrige mandando el comando
+de nuevo. Sirve para que `/recordar` (quién le falta atacar en la guerra
+activa) pueda etiquetar directo a la persona en vez de solo nombrarla. Si
+la respuesta de un comando trae `@numero`, el puente arma la lista de
+menciones automáticamente para que WhatsApp le mande notificación de
+verdad, no solo lo muestre como texto.
+
 Esto necesita `BOT_API_URL` / `BOT_API_TOKEN` en `.env` (ver
 `.env.example`), y que el bot de Discord tenga configurado `BOT_API_TOKEN`
 en su propio `.env` con el mismo valor. Sin esto, los comandos del grupo se

@@ -59,6 +59,13 @@ CREATE TABLE IF NOT EXISTS raid_weekends (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     start_time TEXT NOT NULL UNIQUE
 );
+
+CREATE TABLE IF NOT EXISTS vinculos_wa (
+    wa_jid TEXT PRIMARY KEY,
+    player_tag TEXT NOT NULL,
+    player_name TEXT NOT NULL,
+    fecha TEXT NOT NULL
+);
 """
 
 
@@ -311,6 +318,30 @@ def ranking_reputacion(con, temporada):
         r["categorias"][categoria] = puntos
         r["total"] += puntos
     return resumen
+
+
+# ---- vinculos de WhatsApp ---------------------------------------------------
+
+def vincular_wa(con, wa_jid: str, player_tag: str, player_name: str):
+    con.execute(
+        "INSERT INTO vinculos_wa (wa_jid, player_tag, player_name, fecha) VALUES (?, ?, ?, ?) "
+        "ON CONFLICT(wa_jid) DO UPDATE SET player_tag=excluded.player_tag, "
+        "player_name=excluded.player_name, fecha=excluded.fecha",
+        (wa_jid, player_tag, player_name, datetime.now(timezone.utc).isoformat()),
+    )
+    con.commit()
+
+
+def desvincular_wa(con, wa_jid: str) -> bool:
+    cur = con.execute("DELETE FROM vinculos_wa WHERE wa_jid = ?", (wa_jid,))
+    con.commit()
+    return cur.rowcount > 0
+
+
+def jids_por_tag(con) -> dict:
+    """player_tag -> wa_jid, de todos los vinculos guardados."""
+    filas = con.execute("SELECT player_tag, wa_jid FROM vinculos_wa").fetchall()
+    return {tag: jid for tag, jid in filas}
 
 
 def temporadas_registradas(con):

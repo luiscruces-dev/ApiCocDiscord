@@ -18,7 +18,7 @@ class Ayuda(commands.Cog):
         lineas += [f"`/{c.qualified_name}` — {c.description}" for c in comandos]
         await interaction.response.send_message("\n".join(lineas))
 
-    async def _lineas_comandos_wa(self) -> list[str]:
+    async def _lineas_comandos_wa(self, argumentos: str = "", remitente: str = "") -> list[str]:
         lineas = ["**Comandos disponibles por acá**\n"]
         lineas += [f"/{nombre}" for nombre in sorted(self.bot.comandos_wa)]
         return lineas

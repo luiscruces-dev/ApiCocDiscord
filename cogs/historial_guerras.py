@@ -61,7 +61,7 @@ class HistorialGuerras(commands.Cog):
     async def antes_de_revisar(self):
         await self.bot.wait_until_ready()
 
-    async def _lineas_historial(self) -> list[str]:
+    async def _lineas_historial(self, argumentos: str = "", remitente: str = "") -> list[str]:
         filas = storage.ultimas_guerras(self.db, limite=10)
         if not filas:
             return [
@@ -79,7 +79,7 @@ class HistorialGuerras(commands.Cog):
         await interaction.response.defer()
         await enviar_en_paginas(interaction, await self._lineas_historial())
 
-    async def _lineas_kda(self) -> list[str]:
+    async def _lineas_kda(self, argumentos: str = "", remitente: str = "") -> list[str]:
         stats = storage.stats_por_jugador(self.db)
         if not stats:
             return [
