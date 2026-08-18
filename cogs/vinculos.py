@@ -11,10 +11,14 @@ excepcion acá porque vincularse no afecta al clan en nada — en el peor caso
 alguien se vincula con el tag equivocado, y se corrige mandando /vincular
 de nuevo o /desvincular.
 
-Ademas de /recordar (a pedido, en el grupo), un loop de fondo manda el
-mismo recordatorio solo cada 4h mientras haya guerra activa y falte
-alguien por atacar -- silencioso el resto del tiempo (no avisa "no hay
-guerra" cada 4h, eso solo lo dice /recordar cuando alguien lo pide).
+Ademas de /recordar (a pedido, en el grupo), dos loops de fondo avisan
+solos por WhatsApp:
+- aviso_inicio_guerra (cada 10 min) manda un aviso especial UNA vez apenas
+  arranca cada guerra ("hemos iniciado guerra").
+- recordatorio_automatico (cada 4h) manda el recordatorio normal mientras
+  la guerra siga activa y falte alguien por atacar.
+Los dos son silenciosos el resto del tiempo (no avisan "no hay guerra"
+seguido, eso solo lo dice /recordar cuando alguien lo pide a mano).
 """
 import logging
 
@@ -44,9 +48,11 @@ class Vinculos(commands.Cog):
         bot.comandos_wa["vincular"] = self._vincular
         bot.comandos_wa["desvincular"] = self._desvincular
         bot.comandos_wa["recordar"] = self._recordar
+        self.aviso_inicio_guerra.start()
         self.recordatorio_automatico.start()
 
     def cog_unload(self):
+        self.aviso_inicio_guerra.cancel()
         self.recordatorio_automatico.cancel()
         self.db.close()
 
@@ -118,12 +124,11 @@ class Vinculos(commands.Cog):
         faltan = [m for m in guerra.clan.members if len(m.attacks) < guerra.attacks_per_member]
         return "ok", guerra, faltan
 
-    def _armar_recordatorio(self, guerra, faltan) -> tuple[list[str], list[str]]:
+    def _armar_recordatorio(self, guerra, faltan, encabezado: str | None = None) -> tuple[list[str], list[str]]:
         jids = storage.jids_por_tag(self.db)
         tiempo = _tiempo_legible(guerra.end_time.seconds_until)
-        lineas = [
-            f"Muchachos, recuerden atacar en guerra contra **{guerra.opponent.name}**, tienen {tiempo}:\n"
-        ]
+        encabezado = encabezado or f"Muchachos, recuerden atacar en guerra contra **{guerra.opponent.name}**"
+        lineas = [f"{encabezado}, tienen {tiempo}:\n"]
         menciones = []
         for m in sorted(faltan, key=lambda m: m.map_position):
             usados = len(m.attacks)
@@ -157,6 +162,43 @@ class Vinculos(commands.Cog):
         if not faltan:
             return [f"Ya atacaron todos contra **{guerra.opponent.name}**, no falta nadie."], []
         return self._armar_recordatorio(guerra, faltan)
+
+    @tasks.loop(minutes=10)
+    async def aviso_inicio_guerra(self):
+        # Chequeo frecuente (mismo intervalo que revisar_guerra en
+        # historial_guerras.py) para pescar el arranque de la guerra rapido,
+        # no recien en el proximo tick del recordatorio de 4h. Se guarda en
+        # avisos_inicio_guerra para no repetir el aviso si el bot reinicia
+        # a mitad de una guerra ya avisada.
+        if not whatsapp.configurado():
+            return
+        try:
+            estado, guerra, faltan = await self._estado_guerra_faltan()
+            if estado != "ok":
+                return
+
+            start_time = guerra.start_time.raw_time
+            opponent_tag = guerra.opponent.tag
+            if storage.guerra_inicio_avisado(self.db, start_time, opponent_tag):
+                return
+
+            storage.marcar_guerra_inicio_avisado(self.db, start_time, opponent_tag)
+            if not faltan:
+                return
+
+            lineas, menciones = self._armar_recordatorio(
+                guerra, faltan, encabezado="📢 *CLAN, HEMOS INICIADO GUERRA. RECUERDEN ATACAR*"
+            )
+            texto = whatsapp.formatear_para_whatsapp("\n".join(lineas))
+            ok, detalle = await whatsapp.enviar(texto, mentions=menciones)
+            if not ok:
+                logging.getLogger("apicocdiscord").warning("aviso_inicio_guerra: no se pudo enviar (%s)", detalle)
+        except Exception:
+            logging.getLogger("apicocdiscord").exception("aviso_inicio_guerra: error inesperado, reintento en 10 min")
+
+    @aviso_inicio_guerra.before_loop
+    async def antes_de_avisar_inicio(self):
+        await self.bot.wait_until_ready()
 
     @tasks.loop(hours=4)
     async def recordatorio_automatico(self):

@@ -21,13 +21,14 @@ WhatsApp configurado (ver "Puente a WhatsApp" más abajo).
 - `/reputacion` 📱 — ranking de reputación de la temporada actual. La fórmula (pesos, multiplicadores por diferencia de TH, penalizaciones) está en [reputacion.py](reputacion.py).
 - `/ayudarep` 📱 — el bot explica en el propio Discord cómo funciona el sistema de reputación.
 - `/enviarwsp mensaje:` — reenvía un texto al grupo de WhatsApp del clan (requiere el puente de `whatsapp-bridge/`, ver más abajo). Solo para quienes pueden gestionar el servidor.
+- `/tags` 📱 — nombre y tag de cada miembro del clan, para que cualquiera ubique el suyo y lo use en `/vincular`.
 - `/comandos` 📱 — lista todos los comandos disponibles del bot (se genera solo, no hay que mantenerla a mano).
 
 Estos tres son exclusivos de WhatsApp (no existen como slash command de Discord, no tendría sentido ahí):
 
 - `/vincular <tag>` — asocia tu número de WhatsApp con un tag de jugador, para que `/recordar` te pueda etiquetar directo. Soporta multicuenta: mandalo de nuevo con otro tag y se suma, no reemplaza el anterior. Única excepción a "solo lectura": no afecta al clan, en el peor caso te vinculás con el tag equivocado y lo corregís mandando el comando de nuevo.
 - `/desvincular` — sin argumento deshace todos tus vínculos; con `/desvincular <tag>` deshace solo esa cuenta.
-- `/recordar` — durante una guerra activa, lista quién le falta atacar; a quien esté vinculado lo etiqueta con una mención real de WhatsApp (no solo texto). Además de a pedido, un loop de fondo manda este mismo aviso solo cada 4h mientras haya guerra activa y falte alguien por atacar (calladito el resto del tiempo, no avisa "no hay guerra" cada 4h).
+- `/recordar` — durante una guerra activa, lista quién le falta atacar; a quien esté vinculado lo etiqueta con una mención real de WhatsApp (no solo texto). Además de a pedido, dos loops de fondo avisan solos: uno manda un aviso especial ("hemos iniciado guerra") una sola vez apenas arranca cada guerra, y otro repite el recordatorio normal cada 4h mientras siga activa y falte alguien por atacar. Los dos son silenciosos el resto del tiempo (no avisan "no hay guerra" seguido).
 
 ## Persistencia
 

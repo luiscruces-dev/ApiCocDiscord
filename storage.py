@@ -66,6 +66,12 @@ CREATE TABLE IF NOT EXISTS vinculos_wa (
     player_name TEXT NOT NULL,
     fecha TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS avisos_inicio_guerra (
+    start_time TEXT NOT NULL,
+    opponent_tag TEXT,
+    UNIQUE(start_time, opponent_tag)
+);
 """
 
 
@@ -377,6 +383,22 @@ def tags_de_jid(con, wa_jid: str) -> list[tuple[str, str]]:
     return con.execute(
         "SELECT player_tag, player_name FROM vinculos_wa WHERE wa_jid = ? ORDER BY player_name", (wa_jid,)
     ).fetchall()
+
+
+def guerra_inicio_avisado(con, start_time: str, opponent_tag: str) -> bool:
+    fila = con.execute(
+        "SELECT 1 FROM avisos_inicio_guerra WHERE start_time = ? AND opponent_tag = ?",
+        (start_time, opponent_tag),
+    ).fetchone()
+    return fila is not None
+
+
+def marcar_guerra_inicio_avisado(con, start_time: str, opponent_tag: str):
+    con.execute(
+        "INSERT OR IGNORE INTO avisos_inicio_guerra (start_time, opponent_tag) VALUES (?, ?)",
+        (start_time, opponent_tag),
+    )
+    con.commit()
 
 
 def jids_por_tag(con) -> dict:

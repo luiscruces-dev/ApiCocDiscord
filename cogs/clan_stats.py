@@ -26,6 +26,7 @@ class ClanStats(commands.Cog):
         bot.comandos_wa["donaciones"] = self._lineas_donaciones
         bot.comandos_wa["capital"] = self._lineas_capital
         bot.comandos_wa["guerra"] = self._lineas_guerra
+        bot.comandos_wa["tags"] = self._lineas_tags
 
     @property
     def coc_client(self) -> coc.Client:
@@ -36,7 +37,7 @@ class ClanStats(commands.Cog):
         lineas = [f"**{clan.name}** ({clan.tag}) — {len(clan.members)} miembros\n"]
         for m in sorted(clan.members, key=lambda m: -m.trophies):
             lineas.append(
-                f"`{m.clan_rank:>2}` **{m.name}** ({m.tag}) — {rol_legible(m.role)} · "
+                f"`{m.clan_rank:>2}` **{m.name}** ({rol_legible(m.role)}) — "
                 f"TH{m.town_hall} · Trofeos: {m.trophies} · Donaciones: {m.donations} dadas / {m.received} recibidas"
             )
         return lineas
@@ -45,6 +46,18 @@ class ClanStats(commands.Cog):
     async def miembros(self, interaction: discord.Interaction):
         await interaction.response.defer()
         await enviar_en_paginas(interaction, await self._lineas_miembros())
+
+    async def _lineas_tags(self, argumentos: str = "", remitente: str = "") -> list[str]:
+        clan = await self.coc_client.get_clan(config.CLAN_TAG)
+        lineas = [f"**Tags — {clan.name}**\n"]
+        for m in sorted(clan.members, key=lambda m: m.name.lower()):
+            lineas.append(f"**{m.name}** — {m.tag}")
+        return lineas
+
+    @app_commands.command(name="tags", description="Lista el nombre y tag de cada miembro del clan")
+    async def tags(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        await enviar_en_paginas(interaction, await self._lineas_tags())
 
     async def _lineas_donaciones(self, argumentos: str = "", remitente: str = "") -> list[str]:
         clan = await self.coc_client.get_clan(config.CLAN_TAG)
