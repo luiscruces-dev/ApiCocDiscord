@@ -208,6 +208,31 @@ app.get("/grupos", autenticar, async (req, res) => {
   }
 });
 
+// Debug: JIDs reales de los participantes del grupo configurado. Sirve para
+// diagnosticar menciones que no resaltan (WhatsApp a veces direcciona por
+// @lid en vez del numero de telefono @s.whatsapp.net).
+app.get("/participantes", autenticar, async (req, res) => {
+  if (!sock || !conectado) {
+    return res.status(503).json({ error: "WhatsApp no esta conectado todavia" });
+  }
+  if (!GROUP_ID) {
+    return res.status(500).json({ error: "Falta WHATSAPP_GROUP_ID en .env" });
+  }
+  try {
+    const metadata = await sock.groupMetadata(GROUP_ID);
+    res.json({
+      participantes: metadata.participants.map((p) => ({
+        id: p.id,
+        lid: p.lid || null,
+        admin: p.admin || null,
+      })),
+    });
+  } catch (err) {
+    console.error("Error obteniendo participantes:", err);
+    res.status(500).json({ error: "No se pudo obtener los participantes" });
+  }
+});
+
 // Solo localhost: el bot de Discord vive en el mismo servidor, no hace
 // falta (ni conviene) exponer esto a internet.
 app.listen(PORT, "127.0.0.1", () => {
