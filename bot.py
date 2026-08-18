@@ -32,6 +32,7 @@ class ClanBot(commands.Bot):
         await self.load_extension("cogs.clan_games")
         await self.load_extension("cogs.reputacion")
         await self.load_extension("cogs.ayuda")
+        await self.load_extension("cogs.whatsapp")
 
         if config.GUILD_ID:
             guild = discord.Object(id=int(config.GUILD_ID))

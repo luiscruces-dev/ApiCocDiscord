@@ -17,6 +17,7 @@ games combinados), usando la API oficial de Supercell vía
 - `/clangames iniciar` / `/clangames cerrar` — miden los puntos de Clan Games a mano (la API solo da el acumulado de toda la vida, no el del evento actual — ver "Limitaciones" más abajo). También se disparan solos: un loop de fondo revisa la fecha (calendario fijo 22-28 de cada mes, UTC) y abre/cierra la medición automáticamente, avisando en el canal que configures con `CLAN_GAMES_CHANNEL_ID` en `.env`.
 - `/reputacion` — ranking de reputación de la temporada actual. La fórmula (pesos, multiplicadores por diferencia de TH, penalizaciones) está en [reputacion.py](reputacion.py).
 - `/ayudarep` — el bot explica en el propio Discord cómo funciona el sistema de reputación.
+- `/enviarwsp mensaje:` — reenvía un texto al grupo de WhatsApp del clan (requiere el puente de `whatsapp-bridge/`, ver más abajo). Solo para quienes pueden gestionar el servidor.
 - `/comandos` — lista todos los comandos disponibles del bot (se genera solo, no hay que mantenerla a mano).
 
 ## Persistencia
@@ -55,6 +56,15 @@ Copia `.env.example` a `.env` y completa:
 ```bash
 python bot.py
 ```
+
+## Puente a WhatsApp
+
+`/enviarwsp` reenvía mensajes a un grupo de WhatsApp a través de un servicio
+aparte, [`whatsapp-bridge/`](whatsapp-bridge/) (Node.js), pensado para correr
+en un servidor propio 24/7 (no en el mismo hosting compartido del bot de
+Discord — ver el README de esa carpeta para el por qué). Sin
+`WHATSAPP_BRIDGE_URL` / `WHATSAPP_BRIDGE_TOKEN` en `.env`, el comando sigue
+existiendo pero avisa que no está configurado en vez de fallar.
 
 ## Limitaciones reales de la API (confirmado en el Discord oficial de la comunidad, `discord.gg/clashapi`)
 
