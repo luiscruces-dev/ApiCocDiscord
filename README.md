@@ -8,17 +8,20 @@ games combinados), usando la API oficial de Supercell vía
 
 ## Comandos
 
-- `/miembros` — lista de todo el clan: rol, TH, trofeos, donaciones dadas/recibidas.
-- `/donaciones` — ranking de donaciones (dadas, recibidas y ratio).
-- `/capital` — ranking de oro saqueado en el último Raid Weekend.
-- `/guerra` — estado de la guerra actual, ataques usados, estrellas y % de destrucción por miembro.
-- `/historial` — últimas guerras guardadas por el bot.
-- `/kda` — estadísticas acumuladas de ataque/defensa por jugador, de las guerras guardadas hasta ahora.
-- `/clangames iniciar` / `/clangames cerrar` — miden los puntos de Clan Games a mano (la API solo da el acumulado de toda la vida, no el del evento actual — ver "Limitaciones" más abajo). También se disparan solos: un loop de fondo revisa la fecha (calendario fijo 22-28 de cada mes, UTC) y abre/cierra la medición automáticamente, avisando en el canal que configures con `CLAN_GAMES_CHANNEL_ID` en `.env`.
-- `/reputacion` — ranking de reputación de la temporada actual. La fórmula (pesos, multiplicadores por diferencia de TH, penalizaciones) está en [reputacion.py](reputacion.py).
-- `/ayudarep` — el bot explica en el propio Discord cómo funciona el sistema de reputación.
+Los marcados con 📱 también funcionan escribiéndolos tal cual en el grupo de
+WhatsApp configurado (ver "Puente a WhatsApp" más abajo).
+
+- `/miembros` 📱 — lista de todo el clan: rol, TH, trofeos, donaciones dadas/recibidas.
+- `/donaciones` 📱 — ranking de donaciones (dadas, recibidas y ratio).
+- `/capital` 📱 — ranking de oro saqueado en el último Raid Weekend.
+- `/guerra` 📱 — estado de la guerra actual, ataques usados, estrellas y % de destrucción por miembro.
+- `/historial` 📱 — últimas guerras guardadas por el bot.
+- `/kda` 📱 — estadísticas acumuladas de ataque/defensa por jugador, de las guerras guardadas hasta ahora.
+- `/clangames iniciar` / `/clangames cerrar` — miden los puntos de Clan Games a mano (la API solo da el acumulado de toda la vida, no el del evento actual — ver "Limitaciones" más abajo). También se disparan solos: un loop de fondo revisa la fecha (calendario fijo 22-28 de cada mes, UTC) y abre/cierra la medición automáticamente, avisando en el canal que configures con `CLAN_GAMES_CHANNEL_ID` en `.env`. Exclusivo de Discord a propósito: cambia estado, no se expone por WhatsApp.
+- `/reputacion` 📱 — ranking de reputación de la temporada actual. La fórmula (pesos, multiplicadores por diferencia de TH, penalizaciones) está en [reputacion.py](reputacion.py).
+- `/ayudarep` 📱 — el bot explica en el propio Discord cómo funciona el sistema de reputación.
 - `/enviarwsp mensaje:` — reenvía un texto al grupo de WhatsApp del clan (requiere el puente de `whatsapp-bridge/`, ver más abajo). Solo para quienes pueden gestionar el servidor.
-- `/comandos` — lista todos los comandos disponibles del bot (se genera solo, no hay que mantenerla a mano).
+- `/comandos` 📱 — lista todos los comandos disponibles del bot (se genera solo, no hay que mantenerla a mano).
 
 ## Persistencia
 
@@ -65,6 +68,14 @@ en un servidor propio 24/7 (no en el mismo hosting compartido del bot de
 Discord — ver el README de esa carpeta para el por qué). Sin
 `WHATSAPP_BRIDGE_URL` / `WHATSAPP_BRIDGE_TOKEN` en `.env`, el comando sigue
 existiendo pero avisa que no está configurado en vez de fallar.
+
+También funciona al revés: si alguien escribe `/miembros`, `/guerra`, etc.
+directo en el grupo de WhatsApp, el puente le pide la respuesta a este bot
+(vía una API interna en `127.0.0.1`, protegida con `BOT_API_TOKEN`) y
+contesta ahí mismo. Solo los comandos de solo lectura están disponibles por
+WhatsApp — los que cambian estado (`/clangames iniciar`/`cerrar`) siguen
+siendo exclusivos de Discord. Sin `BOT_API_TOKEN` en `.env`, esta API
+interna ni arranca y el grupo simplemente no responde a comandos.
 
 ## Limitaciones reales de la API (confirmado en el Discord oficial de la comunidad, `discord.gg/clashapi`)
 

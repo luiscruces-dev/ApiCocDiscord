@@ -27,6 +27,8 @@ class HistorialGuerras(commands.Cog):
         self.bot = bot
         self.db = storage.conectar()
         self.revisar_guerra.start()
+        bot.comandos_wa["historial"] = self._lineas_historial
+        bot.comandos_wa["kda"] = self._lineas_kda
 
     def cog_unload(self):
         self.revisar_guerra.cancel()
@@ -59,36 +61,31 @@ class HistorialGuerras(commands.Cog):
     async def antes_de_revisar(self):
         await self.bot.wait_until_ready()
 
-    @app_commands.command(name="historial", description="Ultimas guerras guardadas del clan")
-    async def historial(self, interaction: discord.Interaction):
-        await interaction.response.defer()
+    async def _lineas_historial(self) -> list[str]:
         filas = storage.ultimas_guerras(self.db, limite=10)
         if not filas:
-            await interaction.followup.send(
+            return [
                 "Todavia no hay guerras guardadas. Reviso cada 10 min si la guerra actual termino "
                 "y la guardo — dale tiempo mientras el bot este corriendo durante una guerra."
-            )
-            return
+            ]
 
         lineas = ["**Ultimas guerras**\n"]
         for end_time, opp_name, status, team_size, tipo in filas:
             lineas.append(f"vs **{opp_name}** ({team_size}v{team_size}, {tipo}) — {status}")
+        return lineas
 
-        await enviar_en_paginas(interaction, lineas)
-
-    @app_commands.command(
-        name="kda",
-        description="Estadisticas de ataque/defensa por jugador, de las guerras guardadas hasta ahora",
-    )
-    async def kda(self, interaction: discord.Interaction):
+    @app_commands.command(name="historial", description="Ultimas guerras guardadas del clan")
+    async def historial(self, interaction: discord.Interaction):
         await interaction.response.defer()
+        await enviar_en_paginas(interaction, await self._lineas_historial())
+
+    async def _lineas_kda(self) -> list[str]:
         stats = storage.stats_por_jugador(self.db)
         if not stats:
-            await interaction.followup.send(
+            return [
                 "Todavia no hay datos — se van guardando solos cuando termina cada guerra "
                 "mientras el bot este corriendo."
-            )
-            return
+            ]
 
         ordenados = sorted(stats.items(), key=lambda kv: -kv[1]["estrellas_ataque"])
         lineas = ["**KDA de guerra (acumulado desde que esto quedo corriendo)**\n"]
@@ -99,8 +96,15 @@ class HistorialGuerras(commands.Cog):
                 f"({prom_destruccion:.0f}% destr. prom · TH arriba/igual/abajo: {s['subio']}/{s['igual']}/{s['bajo']}) · "
                 f"defensa: {s['veces_atacado']}x atacado, {s['estrellas_recibidas']} estrellas recibidas"
             )
+        return lineas
 
-        await enviar_en_paginas(interaction, lineas)
+    @app_commands.command(
+        name="kda",
+        description="Estadisticas de ataque/defensa por jugador, de las guerras guardadas hasta ahora",
+    )
+    async def kda(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        await enviar_en_paginas(interaction, await self._lineas_kda())
 
 
 async def setup(bot: commands.Bot):

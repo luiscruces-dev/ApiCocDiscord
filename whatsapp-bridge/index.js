@@ -12,6 +12,8 @@ const {
 const PORT = process.env.PORT || 3001;
 const BRIDGE_TOKEN = process.env.BRIDGE_TOKEN;
 const GROUP_ID = process.env.WHATSAPP_GROUP_ID;
+const BOT_API_URL = process.env.BOT_API_URL;
+const BOT_API_TOKEN = process.env.BOT_API_TOKEN;
 
 if (!BRIDGE_TOKEN) {
   console.error(
@@ -24,6 +26,46 @@ let sock = null;
 let conectado = false;
 let ultimoQR = null;
 
+// Comandos de solo lectura escritos en el grupo (ej. "/miembros") se
+// reenvian al bot de Discord, que es el unico que habla con la API de
+// Clash y con la base de datos. Este puente solo traduce ida y vuelta.
+async function manejarMensajeEntrante(msg) {
+  if (!GROUP_ID || msg.key.remoteJid !== GROUP_ID) return;
+  if (msg.key.fromMe) return;
+
+  const texto = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
+  if (!texto || !texto.startsWith("/")) return;
+
+  const nombre = texto.slice(1).trim().split(/\s+/)[0].toLowerCase();
+  if (!nombre) return;
+
+  if (!BOT_API_URL || !BOT_API_TOKEN) {
+    console.warn("Llego el comando '%s' pero BOT_API_URL/BOT_API_TOKEN no estan configurados, lo ignoro.", nombre);
+    return;
+  }
+
+  let respuesta;
+  try {
+    const resp = await fetch(`${BOT_API_URL.replace(/\/$/, "")}/comando`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${BOT_API_TOKEN}`,
+      },
+      body: JSON.stringify({ nombre }),
+    });
+    const datos = await resp.json();
+    respuesta = resp.ok ? datos.texto : datos.error || "Error desconocido consultando el bot de Discord.";
+  } catch (err) {
+    console.error("No se pudo contactar el bot de Discord:", err);
+    respuesta = "No pude consultar el bot de Discord ahora mismo, intenta de nuevo en un rato.";
+  }
+
+  if (sock && conectado) {
+    await sock.sendMessage(GROUP_ID, { text: respuesta }, { quoted: msg });
+  }
+}
+
 async function iniciarWhatsApp() {
   const { state, saveCreds } = await useMultiFileAuthState("auth_info");
   const { version } = await fetchLatestBaileysVersion();
@@ -34,6 +76,13 @@ async function iniciarWhatsApp() {
   });
 
   sock.ev.on("creds.update", saveCreds);
+
+  sock.ev.on("messages.upsert", ({ messages, type }) => {
+    if (type !== "notify") return;
+    for (const msg of messages) {
+      manejarMensajeEntrante(msg).catch((err) => console.error("Error manejando mensaje entrante:", err));
+    }
+  });
 
   sock.ev.on("connection.update", (update) => {
     const { connection, lastDisconnect, qr } = update;

@@ -74,6 +74,30 @@ pm2 save
 pm2 startup   # deja el proceso arrancando solo si el servidor reinicia
 ```
 
+## Comandos escritos en el grupo
+
+Además de reenviar avisos (Discord → WhatsApp), el puente escucha lo que se
+escribe en el grupo configurado. Si alguien tipea `/miembros`, `/guerra`,
+etc., el puente le pregunta la respuesta al bot de Discord (que es el único
+que habla con la API de Clash y con la base de datos — este puente nunca
+duplica esa lógica) y contesta en el grupo citando el mensaje original.
+
+Por diseño, **solo funcionan los comandos de solo lectura** (los mismos que
+`/comandos` lista desde WhatsApp). Los que cambian estado, como
+`/clangames iniciar` / `/clangames cerrar`, quedan exclusivos de Discord a
+propósito — así nadie los dispara sin querer escribiendo en el grupo.
+
+Esto necesita `BOT_API_URL` / `BOT_API_TOKEN` en `.env` (ver
+`.env.example`), y que el bot de Discord tenga configurado `BOT_API_TOKEN`
+en su propio `.env` con el mismo valor. Sin esto, los comandos del grupo se
+ignoran silenciosamente (queda un aviso en los logs), pero `/enviarwsp`
+desde Discord sigue andando igual.
+
+**Importante:** el puente solo procesa mensajes del grupo exacto en
+`WHATSAPP_GROUP_ID`. Si el número vinculado está en otros grupos (como pasa
+si usás tu WhatsApp personal para probar), esos otros grupos se ignoran por
+completo — nunca les contesta nada.
+
 ## Endpoints
 
 Todos requieren el header `Authorization: Bearer <BRIDGE_TOKEN>`.

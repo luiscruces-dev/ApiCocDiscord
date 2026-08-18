@@ -17,6 +17,8 @@ class Reputacion(commands.Cog):
         self.db = storage.conectar()
         self.sincronizar_donaciones.start()
         self.revisar_capital.start()
+        bot.comandos_wa["reputacion"] = self._lineas_reputacion
+        bot.comandos_wa["ayudarep"] = self._lineas_ayudarep
 
     def cog_unload(self):
         self.sincronizar_donaciones.cancel()
@@ -27,20 +29,14 @@ class Reputacion(commands.Cog):
     def coc_client(self) -> coc.Client:
         return self.bot.coc_client
 
-    @app_commands.command(
-        name="reputacion",
-        description="Ranking de reputacion de la temporada actual (guerra, donaciones, capital, clan games)",
-    )
-    async def reputacion_cmd(self, interaction: discord.Interaction):
-        await interaction.response.defer()
+    async def _lineas_reputacion(self) -> list[str]:
         temporada = reputacion.temporada_actual()
         resumen = storage.ranking_reputacion(self.db, temporada)
         if not resumen:
-            await interaction.followup.send(
+            return [
                 "Todavia no hay puntos de reputacion registrados esta temporada. Se van sumando solos "
                 "con cada guerra guardada, cada hora con donaciones, y en cada cierre de capital o clan games."
-            )
-            return
+            ]
 
         fin = coc.utils.get_season_end().date().isoformat()
         ranking = sorted(resumen.items(), key=lambda kv: -kv[1]["total"])
@@ -54,13 +50,18 @@ class Reputacion(commands.Cog):
                 f"(guerra {guerra:.0f} · donaciones {cat.get('donaciones', 0):.0f} · "
                 f"capital {cat.get('capital', 0):.0f} · clan games {cat.get('clan_games', 0):.0f})"
             )
+        return lineas
 
-        await enviar_en_paginas(interaction, lineas)
-
-    @app_commands.command(name="ayudarep", description="Explica como funciona el sistema de reputacion")
-    async def ayudarep(self, interaction: discord.Interaction):
+    @app_commands.command(
+        name="reputacion",
+        description="Ranking de reputacion de la temporada actual (guerra, donaciones, capital, clan games)",
+    )
+    async def reputacion_cmd(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        lineas = [
+        await enviar_en_paginas(interaction, await self._lineas_reputacion())
+
+    async def _lineas_ayudarep(self) -> list[str]:
+        return [
             "**Como funciona la reputacion**\n",
             "Cada miembro acumula puntos, que pueden sumar o restar, por guerra, donaciones, "
             "capital y clan games. Se mide por temporada (se reinicia con la temporada oficial "
@@ -86,7 +87,11 @@ class Reputacion(commands.Cog):
             "",
             "Usa `/reputacion` para ver el ranking de la temporada actual.",
         ]
-        await enviar_en_paginas(interaction, lineas)
+
+    @app_commands.command(name="ayudarep", description="Explica como funciona el sistema de reputacion")
+    async def ayudarep(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        await enviar_en_paginas(interaction, await self._lineas_ayudarep())
 
     @tasks.loop(hours=1)
     async def sincronizar_donaciones(self):

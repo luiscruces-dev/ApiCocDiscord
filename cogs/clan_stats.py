@@ -22,28 +22,31 @@ def rol_legible(rol) -> str:
 class ClanStats(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        bot.comandos_wa["miembros"] = self._lineas_miembros
+        bot.comandos_wa["donaciones"] = self._lineas_donaciones
+        bot.comandos_wa["capital"] = self._lineas_capital
+        bot.comandos_wa["guerra"] = self._lineas_guerra
 
     @property
     def coc_client(self) -> coc.Client:
         return self.bot.coc_client
 
-    @app_commands.command(name="miembros", description="Lista todos los miembros del clan con sus stats básicos")
-    async def miembros(self, interaction: discord.Interaction):
-        await interaction.response.defer()
+    async def _lineas_miembros(self) -> list[str]:
         clan = await self.coc_client.get_clan(config.CLAN_TAG)
-
         lineas = [f"**{clan.name}** ({clan.tag}) — {len(clan.members)} miembros\n"]
         for m in sorted(clan.members, key=lambda m: -m.trophies):
             lineas.append(
                 f"`{m.clan_rank:>2}` **{m.name}** ({rol_legible(m.role)}) — "
                 f"TH{m.town_hall} · Trofeos: {m.trophies} · Donaciones: {m.donations} dadas / {m.received} recibidas"
             )
+        return lineas
 
-        await enviar_en_paginas(interaction, lineas)
-
-    @app_commands.command(name="donaciones", description="Ranking de donaciones del clan (dadas y recibidas)")
-    async def donaciones(self, interaction: discord.Interaction):
+    @app_commands.command(name="miembros", description="Lista todos los miembros del clan con sus stats básicos")
+    async def miembros(self, interaction: discord.Interaction):
         await interaction.response.defer()
+        await enviar_en_paginas(interaction, await self._lineas_miembros())
+
+    async def _lineas_donaciones(self) -> list[str]:
         clan = await self.coc_client.get_clan(config.CLAN_TAG)
         ordenados = sorted(clan.members, key=lambda m: -m.donations)
 
@@ -51,17 +54,18 @@ class ClanStats(commands.Cog):
         for i, m in enumerate(ordenados, start=1):
             ratio = f"{m.donations / m.received:.1f}x" if m.received else "—"
             lineas.append(f"`{i:>2}.` **{m.name}** — {m.donations} dadas / {m.received} recibidas ({ratio})")
+        return lineas
 
-        await enviar_en_paginas(interaction, lineas)
-
-    @app_commands.command(name="capital", description="Ranking de saqueo de oro de capital del último Raid Weekend")
-    async def capital(self, interaction: discord.Interaction):
+    @app_commands.command(name="donaciones", description="Ranking de donaciones del clan (dadas y recibidas)")
+    async def donaciones(self, interaction: discord.Interaction):
         await interaction.response.defer()
+        await enviar_en_paginas(interaction, await self._lineas_donaciones())
+
+    async def _lineas_capital(self) -> list[str]:
         raid_log = await self.coc_client.get_raid_log(config.CLAN_TAG, limit=1)
         entradas = list(raid_log)
         if not entradas:
-            await interaction.followup.send("Todavía no hay datos de Raid Weekends para este clan.")
-            return
+            return ["Todavía no hay datos de Raid Weekends para este clan."]
 
         temporada = entradas[0]
         ordenados = sorted(temporada.members, key=lambda m: -m.capital_resources_looted)
@@ -76,29 +80,29 @@ class ClanStats(commands.Cog):
                 f"`{i:>2}.` **{m.name}** — {m.capital_resources_looted} oro "
                 f"({m.attack_count}/{limite_ataques} ataques)"
             )
+        return lineas
 
-        await enviar_en_paginas(interaction, lineas)
-
-    @app_commands.command(name="guerra", description="Estado de la guerra actual del clan")
-    async def guerra(self, interaction: discord.Interaction):
+    @app_commands.command(name="capital", description="Ranking de saqueo de oro de capital del último Raid Weekend")
+    async def capital(self, interaction: discord.Interaction):
         await interaction.response.defer()
+        await enviar_en_paginas(interaction, await self._lineas_capital())
+
+    async def _lineas_guerra(self) -> list[str]:
         try:
             guerra_actual = await self.coc_client.get_current_war(config.CLAN_TAG)
         except coc.PrivateWarLog:
-            await interaction.followup.send(
+            return [
                 "El registro de guerra de este clan está en privado. "
                 "Actívalo in-game en Ajustes del clan para poder ver esto."
-            )
-            return
+            ]
         except coc.HTTPException:
-            await interaction.followup.send(
-                "La API tuvo un error consultando la guerra (pasa seguido justo en transiciones de ronda de CWL). Intenta de nuevo en un rato."
-            )
-            return
+            return [
+                "La API tuvo un error consultando la guerra (pasa seguido justo en transiciones de ronda de CWL). "
+                "Intenta de nuevo en un rato."
+            ]
 
         if guerra_actual is None or guerra_actual.state == "notInWar":
-            await interaction.followup.send("El clan no está en guerra ahora mismo.")
-            return
+            return ["El clan no está en guerra ahora mismo."]
 
         lineas = [
             f"**Guerra vs {guerra_actual.opponent.name}** — estado: {guerra_actual.state} · "
@@ -110,8 +114,12 @@ class ClanStats(commands.Cog):
                 f"`{m.map_position:>2}.` **{m.name}** — {len(m.attacks)}/{guerra_actual.attacks_per_member} "
                 f"ataques · Estrellas: {m.star_count} · {mejor_destruccion:.0f}% mejor destrucción"
             )
+        return lineas
 
-        await enviar_en_paginas(interaction, lineas)
+    @app_commands.command(name="guerra", description="Estado de la guerra actual del clan")
+    async def guerra(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        await enviar_en_paginas(interaction, await self._lineas_guerra())
 
 
 async def setup(bot: commands.Bot):

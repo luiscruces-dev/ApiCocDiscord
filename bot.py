@@ -21,6 +21,10 @@ class ClanBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix="!", intents=intents)
         self.coc_client: coc.Client | None = None
+        # nombre de comando -> función async que devuelve list[str], para que
+        # el puente de WhatsApp pueda pedir la misma info que dan los slash
+        # commands de solo lectura. Cada cog se registra sola (ver api_interna.py).
+        self.comandos_wa: dict = {}
 
     async def setup_hook(self):
         self.coc_client = coc.Client(base_url=config.COC_BASE_URL)
@@ -33,6 +37,10 @@ class ClanBot(commands.Bot):
         await self.load_extension("cogs.reputacion")
         await self.load_extension("cogs.ayuda")
         await self.load_extension("cogs.whatsapp")
+
+        if config.BOT_API_TOKEN:
+            import api_interna
+            await api_interna.iniciar(self)
 
         if config.GUILD_ID:
             guild = discord.Object(id=int(config.GUILD_ID))

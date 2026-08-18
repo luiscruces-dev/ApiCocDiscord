@@ -28,6 +28,12 @@ CLAN_GAMES_CHANNEL_ID = os.getenv("CLAN_GAMES_CHANNEL_ID") or None
 WHATSAPP_BRIDGE_URL = os.getenv("WHATSAPP_BRIDGE_URL") or None
 WHATSAPP_BRIDGE_TOKEN = os.getenv("WHATSAPP_BRIDGE_TOKEN") or None
 
+# Opcional: token de la API interna que consulta el puente de WhatsApp para
+# responder comandos de solo lectura escritos en el grupo (ver
+# whatsapp-bridge/README.md). Sin esto, esa API interna ni arranca.
+BOT_API_TOKEN = os.getenv("BOT_API_TOKEN") or None
+BOT_API_PORT = int(os.getenv("BOT_API_PORT", "8081"))
+
 # Proxy de RoyaleAPI por defecto soluciona el problema de IP dinámica.
 # Docs https://docs.royaleapi.com/proxy.html por si acaso
 COC_BASE_URL = os.getenv("COC_BASE_URL", "https://cocproxy.royaleapi.dev/v1")
