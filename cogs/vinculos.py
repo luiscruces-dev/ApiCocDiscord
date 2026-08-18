@@ -1,7 +1,8 @@
 """
 Vincula un numero de WhatsApp con un tag de jugador del clan, para poder
 etiquetarlo directo cuando /recordar detecta que le faltan ataques en la
-guerra activa.
+guerra activa. Soporta multicuenta: un mismo numero puede tener varias
+cuentas vinculadas (cada /vincular con un tag nuevo suma, no reemplaza).
 
 A diferencia del resto de comandos_wa, estos SI escriben en la base de
 datos (ver README de whatsapp-bridge, que documenta por que los comandos
@@ -61,17 +62,29 @@ class Vinculos(commands.Cog):
             return [f"{tag} no está en el clan ahora mismo (¿tag mal escrito?)."]
 
         storage.vincular_wa(self.db, remitente, miembro.tag, miembro.name)
-        return [
+        lineas = [
             f"Listo, quedaste vinculado a **{miembro.name}** ({miembro.tag}). "
             f"Te voy a etiquetar en `/recordar` si te faltan ataques de guerra."
         ]
+        cuentas = storage.tags_de_jid(self.db, remitente)
+        if len(cuentas) > 1:
+            nombres = ", ".join(nombre for _tag, nombre in cuentas)
+            lineas.append(f"Tenés {len(cuentas)} cuentas vinculadas a este número: {nombres}.")
+        return lineas
 
     async def _desvincular(self, argumentos: str = "", remitente: str = "") -> list[str]:
         if not remitente:
             return ["No pude identificar quién escribió esto."]
-        if storage.desvincular_wa(self.db, remitente):
-            return ["Listo, te desvinculé."]
-        return ["No tenías ningún tag vinculado."]
+
+        argumentos = (argumentos or "").strip()
+        tag = coc.utils.correct_tag(argumentos) if argumentos else None
+        borrados = storage.desvincular_wa(self.db, remitente, tag)
+
+        if borrados == 0:
+            return ["No tenías esa cuenta vinculada." if tag else "No tenías ningún tag vinculado."]
+        if tag:
+            return [f"Listo, desvinculé {tag}."]
+        return [f"Listo, te desvinculé {borrados} cuenta{'s' if borrados != 1 else ''}."]
 
     async def _recordar(self, argumentos: str = "", remitente: str = "") -> list[str]:
         try:

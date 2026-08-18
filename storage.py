@@ -61,17 +61,42 @@ CREATE TABLE IF NOT EXISTS raid_weekends (
 );
 
 CREATE TABLE IF NOT EXISTS vinculos_wa (
-    wa_jid TEXT PRIMARY KEY,
-    player_tag TEXT NOT NULL,
+    player_tag TEXT PRIMARY KEY,
+    wa_jid TEXT NOT NULL,
     player_name TEXT NOT NULL,
     fecha TEXT NOT NULL
 );
 """
 
 
+def _migrar_vinculos_wa(con):
+    """vinculos_wa empezo con wa_jid como PK (un numero, un solo tag). Para
+    soportar multicuenta (un numero, varios tags) el PK paso a player_tag.
+    Si la tabla ya existe con el esquema viejo, se migra sin perder datos."""
+    columnas = con.execute("PRAGMA table_info(vinculos_wa)").fetchall()
+    pk_actual = next((col[1] for col in columnas if col[5] == 1), None)
+    if pk_actual != "wa_jid":
+        return
+
+    filas = con.execute("SELECT wa_jid, player_tag, player_name, fecha FROM vinculos_wa").fetchall()
+    con.execute("ALTER TABLE vinculos_wa RENAME TO vinculos_wa_viejo")
+    con.execute(
+        "CREATE TABLE vinculos_wa ("
+        "player_tag TEXT PRIMARY KEY, wa_jid TEXT NOT NULL, "
+        "player_name TEXT NOT NULL, fecha TEXT NOT NULL)"
+    )
+    con.executemany(
+        "INSERT INTO vinculos_wa (player_tag, wa_jid, player_name, fecha) VALUES (?, ?, ?, ?)",
+        [(tag, jid, nombre, fecha) for jid, tag, nombre, fecha in filas],
+    )
+    con.execute("DROP TABLE vinculos_wa_viejo")
+    con.commit()
+
+
 def conectar():
     con = sqlite3.connect(DB_PATH)
     con.executescript(SCHEMA)
+    _migrar_vinculos_wa(con)
     return con
 
 
@@ -323,19 +348,35 @@ def ranking_reputacion(con, temporada):
 # ---- vinculos de WhatsApp ---------------------------------------------------
 
 def vincular_wa(con, wa_jid: str, player_tag: str, player_name: str):
+    # player_tag es la PK: un numero puede tener varias cuentas (multicuenta),
+    # pero cada cuenta vive vinculada a un solo numero a la vez.
     con.execute(
-        "INSERT INTO vinculos_wa (wa_jid, player_tag, player_name, fecha) VALUES (?, ?, ?, ?) "
-        "ON CONFLICT(wa_jid) DO UPDATE SET player_tag=excluded.player_tag, "
+        "INSERT INTO vinculos_wa (player_tag, wa_jid, player_name, fecha) VALUES (?, ?, ?, ?) "
+        "ON CONFLICT(player_tag) DO UPDATE SET wa_jid=excluded.wa_jid, "
         "player_name=excluded.player_name, fecha=excluded.fecha",
-        (wa_jid, player_tag, player_name, datetime.now(timezone.utc).isoformat()),
+        (player_tag, wa_jid, player_name, datetime.now(timezone.utc).isoformat()),
     )
     con.commit()
 
 
-def desvincular_wa(con, wa_jid: str) -> bool:
-    cur = con.execute("DELETE FROM vinculos_wa WHERE wa_jid = ?", (wa_jid,))
+def desvincular_wa(con, wa_jid: str, player_tag: str | None = None) -> int:
+    """Sin player_tag borra todas las cuentas vinculadas a ese numero.
+    Con player_tag borra solo esa cuenta. Devuelve cuantas se borraron."""
+    if player_tag:
+        cur = con.execute(
+            "DELETE FROM vinculos_wa WHERE wa_jid = ? AND player_tag = ?", (wa_jid, player_tag)
+        )
+    else:
+        cur = con.execute("DELETE FROM vinculos_wa WHERE wa_jid = ?", (wa_jid,))
     con.commit()
-    return cur.rowcount > 0
+    return cur.rowcount
+
+
+def tags_de_jid(con, wa_jid: str) -> list[tuple[str, str]]:
+    """(player_tag, player_name) de todas las cuentas vinculadas a ese numero."""
+    return con.execute(
+        "SELECT player_tag, player_name FROM vinculos_wa WHERE wa_jid = ? ORDER BY player_name", (wa_jid,)
+    ).fetchall()
 
 
 def jids_por_tag(con) -> dict:
