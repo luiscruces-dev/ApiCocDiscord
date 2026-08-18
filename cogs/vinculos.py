@@ -86,36 +86,46 @@ class Vinculos(commands.Cog):
             return [f"Listo, desvinculé {tag}."]
         return [f"Listo, te desvinculé {borrados} cuenta{'s' if borrados != 1 else ''}."]
 
-    async def _recordar(self, argumentos: str = "", remitente: str = "") -> list[str]:
+    async def _recordar(self, argumentos: str = "", remitente: str = "") -> tuple[list[str], list[str]]:
         try:
             guerra = await self.coc_client.get_current_war(config.CLAN_TAG)
         except coc.PrivateWarLog:
-            return ["El registro de guerra de este clan está en privado, no puedo ver quién atacó."]
+            return ["El registro de guerra de este clan está en privado, no puedo ver quién atacó."], []
         except coc.HTTPException:
-            return ["La API tuvo un error consultando la guerra, intenta de nuevo en un rato."]
+            return ["La API tuvo un error consultando la guerra, intenta de nuevo en un rato."], []
 
         if guerra is None or guerra.state == "notInWar":
-            return ["El clan no está en guerra ahora mismo."]
+            return ["El clan no está en guerra ahora mismo."], []
         if guerra.state == "preparation":
-            return ["La guerra está en día de preparación todavía, no se puede atacar hasta que empiece."]
+            return ["La guerra está en día de preparación todavía, no se puede atacar hasta que empiece."], []
         if guerra.state == "warEnded":
-            return ["La guerra ya terminó."]
+            return ["La guerra ya terminó."], []
 
         faltan = [m for m in guerra.clan.members if len(m.attacks) < guerra.attacks_per_member]
         if not faltan:
-            return [f"Ya atacaron todos contra **{guerra.opponent.name}**, no falta nadie."]
+            return [f"Ya atacaron todos contra **{guerra.opponent.name}**, no falta nadie."], []
 
         jids = storage.jids_por_tag(self.db)
         tiempo = _tiempo_legible(guerra.end_time.seconds_until)
         lineas = [
             f"Muchachos, recuerden atacar en guerra contra **{guerra.opponent.name}**, tienen {tiempo}:\n"
         ]
+        menciones = []
         for m in sorted(faltan, key=lambda m: m.map_position):
             usados = len(m.attacks)
             jid = jids.get(m.tag)
-            quien = f"@{jid.split('@')[0]} ({m.name})" if jid else m.name
+            if jid:
+                # El JID real (con su dominio real: @s.whatsapp.net o @lid segun
+                # como direccione WhatsApp a esta persona en el grupo) va tal
+                # cual en "menciones" — el puente NO debe reconstruirlo a mano,
+                # porque adivinar mal el dominio hace que WhatsApp no lo
+                # reconozca como mencion real.
+                quien = f"@{jid.split('@')[0]} ({m.name})"
+                menciones.append(jid)
+            else:
+                quien = m.name
             lineas.append(f"- {quien} — {usados}/{guerra.attacks_per_member} ataques")
-        return lineas
+        return lineas, menciones
 
 
 async def setup(bot: commands.Bot):

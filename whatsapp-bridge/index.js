@@ -60,6 +60,7 @@ async function manejarMensajeEntrante(msg) {
   }
 
   let respuesta;
+  let menciones = [];
   try {
     const resp = await fetch(`${BOT_API_URL.replace(/\/$/, "")}/comando`, {
       method: "POST",
@@ -71,18 +72,18 @@ async function manejarMensajeEntrante(msg) {
     });
     const datos = await resp.json();
     respuesta = resp.ok ? datos.texto : datos.error || "Error desconocido consultando el bot de Discord.";
+    if (resp.ok) menciones = datos.menciones || [];
   } catch (err) {
     console.error("No se pudo contactar el bot de Discord:", err);
     respuesta = "No pude consultar el bot de Discord ahora mismo, intenta de nuevo en un rato.";
   }
 
   if (sock && conectado) {
-    // Si la respuesta del bot trae "@numero" (ej. /recordar etiquetando a
-    // quien vinculo su tag), se arma la lista de menciones para que
-    // WhatsApp lo resalte y le llegue notificacion, no solo texto plano.
-    const menciones = [...new Set(
-      [...respuesta.matchAll(/@(\d{5,15})(?!\d)/g)].map(([, numero]) => `${numero}@s.whatsapp.net`)
-    )];
+    // Los JIDs a mencionar (ej. /recordar etiquetando a quien vinculo su
+    // tag) vienen armados tal cual desde el bot de Discord — no se
+    // reconstruyen aca. WhatsApp direcciona a cada participante por
+    // @s.whatsapp.net o por @lid segun el caso, y adivinar mal el dominio
+    // hace que no se reconozca como mencion real (queda como texto suelto).
     await sock.sendMessage(GROUP_ID, { text: respuesta, mentions: menciones }, { quoted: msg });
   }
 }

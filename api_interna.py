@@ -58,12 +58,23 @@ def _crear_app(bot) -> web.Application:
             )
 
         try:
-            lineas = await fn(argumentos, remitente)
+            resultado = await fn(argumentos, remitente)
         except Exception:
             log.exception("api_interna: error ejecutando comando '%s' pedido desde WhatsApp", nombre)
             return web.json_response({"error": "Error interno ejecutando el comando"}, status=500)
 
-        return web.json_response({"texto": _a_formato_whatsapp("\n".join(lineas))})
+        # La mayoría de los comandos devuelven solo list[str]. Los que
+        # etiquetan gente (ej. /recordar) devuelven además la lista de JIDs
+        # reales a mencionar — el puente los usa tal cual, sin reconstruirlos.
+        if isinstance(resultado, tuple):
+            lineas, menciones = resultado
+        else:
+            lineas, menciones = resultado, []
+
+        return web.json_response({
+            "texto": _a_formato_whatsapp("\n".join(lineas)),
+            "menciones": menciones,
+        })
 
     app.router.add_post("/comando", comando)
     return app
