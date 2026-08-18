@@ -58,7 +58,7 @@ class ClanStats(commands.Cog):
         vinculados = sum(1 for m in clan.members if m.tag in jids)
         lineas = [f"**Tags — {clan.name}** ({vinculados}/{len(clan.members)} vinculados)\n"]
         for m in sorted(clan.members, key=lambda m: m.name.lower()):
-            marca = "" if m.tag in jids else " — ⚠️ sin vincular"
+            marca = "" if m.tag in jids else " — sin vincular"
             lineas.append(f"**{m.name}** — {m.tag}{marca}")
         return lineas
 
