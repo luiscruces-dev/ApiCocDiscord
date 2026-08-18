@@ -125,7 +125,7 @@ grupo no son `fromMe` y sí disparan los comandos.
 
 Todos requieren el header `Authorization: Bearer <BRIDGE_TOKEN>`.
 
-- `POST /send` — body `{"text": "..."}`, manda el mensaje al grupo configurado.
+- `POST /send` — body `{"text": "...", "mentions": ["jid1", "jid2"]}` (`mentions` opcional), manda el mensaje al grupo configurado.
 - `GET /status` — `{"conectado": true|false}`.
 - `GET /grupos` — lista `{id, nombre}` de todos los grupos donde está el número vinculado.
 - `GET /qr` — imagen PNG del QR pendiente de escanear (404/409 si ya está conectado, 503 si todavía no se generó ninguno).

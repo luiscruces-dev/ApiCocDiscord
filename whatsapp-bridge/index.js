@@ -145,7 +145,7 @@ function autenticar(req, res, next) {
 }
 
 app.post("/send", autenticar, async (req, res) => {
-  const { text } = req.body || {};
+  const { text, mentions } = req.body || {};
   if (!text || typeof text !== "string") {
     return res.status(400).json({ error: 'Falta "text" (string) en el body' });
   }
@@ -157,7 +157,7 @@ app.post("/send", autenticar, async (req, res) => {
   }
 
   try {
-    await sock.sendMessage(GROUP_ID, { text });
+    await sock.sendMessage(GROUP_ID, { text, mentions: Array.isArray(mentions) ? mentions : [] });
     res.json({ ok: true });
   } catch (err) {
     console.error("Error enviando mensaje:", err);
