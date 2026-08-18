@@ -4,6 +4,7 @@ from discord import app_commands
 from discord.ext import commands
 
 import config
+import storage
 from utils import enviar_en_paginas
 
 ROLES_ES = {
@@ -22,11 +23,15 @@ def rol_legible(rol) -> str:
 class ClanStats(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.db = storage.conectar()
         bot.comandos_wa["miembros"] = self._lineas_miembros
         bot.comandos_wa["donaciones"] = self._lineas_donaciones
         bot.comandos_wa["capital"] = self._lineas_capital
         bot.comandos_wa["guerra"] = self._lineas_guerra
         bot.comandos_wa["tags"] = self._lineas_tags
+
+    def cog_unload(self):
+        self.db.close()
 
     @property
     def coc_client(self) -> coc.Client:
@@ -49,9 +54,12 @@ class ClanStats(commands.Cog):
 
     async def _lineas_tags(self, argumentos: str = "", remitente: str = "") -> list[str]:
         clan = await self.coc_client.get_clan(config.CLAN_TAG)
-        lineas = [f"**Tags — {clan.name}**\n"]
+        jids = storage.jids_por_tag(self.db)
+        vinculados = sum(1 for m in clan.members if m.tag in jids)
+        lineas = [f"**Tags — {clan.name}** ({vinculados}/{len(clan.members)} vinculados)\n"]
         for m in sorted(clan.members, key=lambda m: m.name.lower()):
-            lineas.append(f"**{m.name}** — {m.tag}")
+            marca = "" if m.tag in jids else " — ⚠️ sin vincular"
+            lineas.append(f"**{m.name}** — {m.tag}{marca}")
         return lineas
 
     @app_commands.command(name="tags", description="Lista el nombre y tag de cada miembro del clan")
