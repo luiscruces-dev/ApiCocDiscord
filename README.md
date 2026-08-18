@@ -21,7 +21,7 @@ WhatsApp configurado (ver "Puente a WhatsApp" más abajo).
 - `/reputacion` 📱 — ranking de reputación de la temporada actual. La fórmula (pesos, multiplicadores por diferencia de TH, penalizaciones) está en [reputacion.py](reputacion.py).
 - `/ayudarep` 📱 — el bot explica en el propio Discord cómo funciona el sistema de reputación.
 - `/enviarwsp mensaje:` — reenvía un texto al grupo de WhatsApp del clan (requiere el puente de `whatsapp-bridge/`, ver más abajo). Solo para quienes pueden gestionar el servidor.
-- `/tags` 📱 — nombre y tag de cada miembro del clan, marcando quién todavía no vinculó su número ("sin vincular"), para que cualquiera ubique el suyo y lo use en `/vincular`.
+- `/tags` 📱 — nombre y tag de cada miembro del clan, marcando quién todavía no vinculó su número (⚠️ sin vincular), para que cualquiera ubique el suyo y lo use en `/vincular`.
 - `/comandos` 📱 — lista todos los comandos disponibles del bot (se genera solo, no hay que mantenerla a mano).
 
 Estos tres son exclusivos de WhatsApp (no existen como slash command de Discord, no tendría sentido ahí):
