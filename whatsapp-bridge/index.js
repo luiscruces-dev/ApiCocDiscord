@@ -1,6 +1,6 @@
 require("dotenv").config();
 const express = require("express");
-const qrcode = require("qrcode-terminal");
+const QRCode = require("qrcode");
 const { Boom } = require("@hapi/boom");
 const {
   default: makeWASocket,
@@ -22,6 +22,7 @@ if (!BRIDGE_TOKEN) {
 
 let sock = null;
 let conectado = false;
+let ultimoQR = null;
 
 async function iniciarWhatsApp() {
   const { state, saveCreds } = await useMultiFileAuthState("auth_info");
@@ -38,9 +39,8 @@ async function iniciarWhatsApp() {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
-      console.log("\nEscanea este QR desde WhatsApp -> Dispositivos vinculados -> Vincular un dispositivo:\n");
-      qrcode.generate(qr, { small: true });
-      console.log("QR_RAW:" + qr);
+      ultimoQR = qr;
+      console.log("Nuevo QR disponible en GET /qr");
     }
 
     if (connection === "close") {
@@ -55,6 +55,7 @@ async function iniciarWhatsApp() {
       }
     } else if (connection === "open") {
       conectado = true;
+      ultimoQR = null;
       console.log("Conectado a WhatsApp.");
     }
   });
@@ -95,6 +96,23 @@ app.post("/send", autenticar, async (req, res) => {
 
 app.get("/status", autenticar, (req, res) => {
   res.json({ conectado });
+});
+
+app.get("/qr", autenticar, async (req, res) => {
+  if (conectado) {
+    return res.status(409).json({ error: "Ya esta conectado, no hay QR pendiente" });
+  }
+  if (!ultimoQR) {
+    return res.status(503).json({ error: "Todavia no se genero ningun QR, esperá unos segundos" });
+  }
+  try {
+    const png = await QRCode.toBuffer(ultimoQR, { type: "png", width: 400 });
+    res.set("Content-Type", "image/png");
+    res.send(png);
+  } catch (err) {
+    console.error("Error generando QR:", err);
+    res.status(500).json({ error: "No se pudo generar la imagen del QR" });
+  }
 });
 
 app.get("/grupos", autenticar, async (req, res) => {

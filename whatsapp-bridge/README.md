@@ -35,10 +35,15 @@ Dejá `WHATSAPP_GROUP_ID` vacío por ahora, lo llenás en el paso 4.
 ```bash
 npm start
 ```
-Va a imprimir un QR en la terminal. Abrí WhatsApp en el celular que vas a
-usar para el bot → **Ajustes → Dispositivos vinculados → Vincular un
-dispositivo** → escaneá el QR. La sesión queda guardada en `auth_info/` (no
-se sube a git), así que no hace falta re-escanear cada vez que reinicies.
+Con el puente corriendo (y todavía no conectado), pedí el QR como imagen:
+```bash
+curl -H "Authorization: Bearer TU_BRIDGE_TOKEN" http://localhost:3001/qr --output qr.png
+```
+Abrí `qr.png`, y desde el celular que vas a usar para el bot: WhatsApp →
+**Ajustes → Dispositivos vinculados → Vincular un dispositivo** → escaneá.
+El QR rota cada ~20s, así que si tarda en escanear volvé a pedir `/qr` para
+tener uno fresco. La sesión queda guardada en `auth_info/` (no se sube a
+git), así que no hace falta re-escanear cada vez que reinicies.
 
 ### 4. Encontrar el ID del grupo
 Con el puente corriendo y ya conectado (dice "Conectado a WhatsApp." en la
@@ -76,6 +81,7 @@ Todos requieren el header `Authorization: Bearer <BRIDGE_TOKEN>`.
 - `POST /send` — body `{"text": "..."}`, manda el mensaje al grupo configurado.
 - `GET /status` — `{"conectado": true|false}`.
 - `GET /grupos` — lista `{id, nombre}` de todos los grupos donde está el número vinculado.
+- `GET /qr` — imagen PNG del QR pendiente de escanear (404/409 si ya está conectado, 503 si todavía no se generó ninguno).
 
 ## Si deja de andar
 
