@@ -10,12 +10,20 @@ que cambian estado del clan quedan exclusivos de Discord). Se hace una
 excepcion acá porque vincularse no afecta al clan en nada — en el peor caso
 alguien se vincula con el tag equivocado, y se corrige mandando /vincular
 de nuevo o /desvincular.
+
+Ademas de /recordar (a pedido, en el grupo), un loop de fondo manda el
+mismo recordatorio solo cada 4h mientras haya guerra activa y falte
+alguien por atacar -- silencioso el resto del tiempo (no avisa "no hay
+guerra" cada 4h, eso solo lo dice /recordar cuando alguien lo pide).
 """
+import logging
+
 import coc
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 import config
 import storage
+import whatsapp
 
 
 def _tiempo_legible(segundos: int) -> str:
@@ -36,8 +44,10 @@ class Vinculos(commands.Cog):
         bot.comandos_wa["vincular"] = self._vincular
         bot.comandos_wa["desvincular"] = self._desvincular
         bot.comandos_wa["recordar"] = self._recordar
+        self.recordatorio_automatico.start()
 
     def cog_unload(self):
+        self.recordatorio_automatico.cancel()
         self.db.close()
 
     @property
@@ -86,25 +96,29 @@ class Vinculos(commands.Cog):
             return [f"Listo, desvinculé {tag}."]
         return [f"Listo, te desvinculé {borrados} cuenta{'s' if borrados != 1 else ''}."]
 
-    async def _recordar(self, argumentos: str = "", remitente: str = "") -> tuple[list[str], list[str]]:
+    async def _estado_guerra_faltan(self):
+        """(estado, guerra, faltan). estado in: privado, error_api, sin_guerra,
+        preparacion, terminada, ok. guerra/faltan solo estan poblados en los
+        casos donde tiene sentido (preparacion/terminada traen guerra sin
+        faltan; ok trae los dos)."""
         try:
             guerra = await self.coc_client.get_current_war(config.CLAN_TAG)
         except coc.PrivateWarLog:
-            return ["El registro de guerra de este clan está en privado, no puedo ver quién atacó."], []
+            return "privado", None, None
         except coc.HTTPException:
-            return ["La API tuvo un error consultando la guerra, intenta de nuevo en un rato."], []
+            return "error_api", None, None
 
         if guerra is None or guerra.state == "notInWar":
-            return ["El clan no está en guerra ahora mismo."], []
+            return "sin_guerra", None, None
         if guerra.state == "preparation":
-            return ["La guerra está en día de preparación todavía, no se puede atacar hasta que empiece."], []
+            return "preparacion", guerra, None
         if guerra.state == "warEnded":
-            return ["La guerra ya terminó."], []
+            return "terminada", guerra, None
 
         faltan = [m for m in guerra.clan.members if len(m.attacks) < guerra.attacks_per_member]
-        if not faltan:
-            return [f"Ya atacaron todos contra **{guerra.opponent.name}**, no falta nadie."], []
+        return "ok", guerra, faltan
 
+    def _armar_recordatorio(self, guerra, faltan) -> tuple[list[str], list[str]]:
         jids = storage.jids_por_tag(self.db)
         tiempo = _tiempo_legible(guerra.end_time.seconds_until)
         lineas = [
@@ -126,6 +140,49 @@ class Vinculos(commands.Cog):
                 quien = m.name
             lineas.append(f"- {quien} — {usados}/{guerra.attacks_per_member} ataques")
         return lineas, menciones
+
+    async def _recordar(self, argumentos: str = "", remitente: str = "") -> tuple[list[str], list[str]]:
+        estado, guerra, faltan = await self._estado_guerra_faltan()
+        if estado == "privado":
+            return ["El registro de guerra de este clan está en privado, no puedo ver quién atacó."], []
+        if estado == "error_api":
+            return ["La API tuvo un error consultando la guerra, intenta de nuevo en un rato."], []
+        if estado == "sin_guerra":
+            return ["El clan no está en guerra ahora mismo."], []
+        if estado == "preparacion":
+            return ["La guerra está en día de preparación todavía, no se puede atacar hasta que empiece."], []
+        if estado == "terminada":
+            return ["La guerra ya terminó."], []
+
+        if not faltan:
+            return [f"Ya atacaron todos contra **{guerra.opponent.name}**, no falta nadie."], []
+        return self._armar_recordatorio(guerra, faltan)
+
+    @tasks.loop(hours=4)
+    async def recordatorio_automatico(self):
+        # Mismo espiritu que revisar_guerra en historial_guerras.py: este loop
+        # tiene que sobrevivir meses corriendo solo, cualquier error se ignora
+        # y se reintenta en el proximo ciclo, nunca se cae. A diferencia de
+        # /recordar (a pedido), acá NO se avisa nada si no hay guerra activa o
+        # ya atacaron todos — solo interrumpe cuando hay algo que decir.
+        if not whatsapp.configurado():
+            return
+        try:
+            estado, guerra, faltan = await self._estado_guerra_faltan()
+            if estado != "ok" or not faltan:
+                return
+
+            lineas, menciones = self._armar_recordatorio(guerra, faltan)
+            texto = whatsapp.formatear_para_whatsapp("\n".join(lineas))
+            ok, detalle = await whatsapp.enviar(texto, mentions=menciones)
+            if not ok:
+                logging.getLogger("apicocdiscord").warning("recordatorio_automatico: no se pudo enviar (%s)", detalle)
+        except Exception:
+            logging.getLogger("apicocdiscord").exception("recordatorio_automatico: error inesperado, reintento en 4h")
+
+    @recordatorio_automatico.before_loop
+    async def antes_de_recordar_auto(self):
+        await self.bot.wait_until_ready()
 
 
 async def setup(bot: commands.Bot):

@@ -27,7 +27,7 @@ Estos tres son exclusivos de WhatsApp (no existen como slash command de Discord,
 
 - `/vincular <tag>` — asocia tu número de WhatsApp con un tag de jugador, para que `/recordar` te pueda etiquetar directo. Soporta multicuenta: mandalo de nuevo con otro tag y se suma, no reemplaza el anterior. Única excepción a "solo lectura": no afecta al clan, en el peor caso te vinculás con el tag equivocado y lo corregís mandando el comando de nuevo.
 - `/desvincular` — sin argumento deshace todos tus vínculos; con `/desvincular <tag>` deshace solo esa cuenta.
-- `/recordar` — durante una guerra activa, lista quién le falta atacar; a quien esté vinculado lo etiqueta con una mención real de WhatsApp (no solo texto).
+- `/recordar` — durante una guerra activa, lista quién le falta atacar; a quien esté vinculado lo etiqueta con una mención real de WhatsApp (no solo texto). Además de a pedido, un loop de fondo manda este mismo aviso solo cada 4h mientras haya guerra activa y falte alguien por atacar (calladito el resto del tiempo, no avisa "no hay guerra" cada 4h).
 
 ## Persistencia
 

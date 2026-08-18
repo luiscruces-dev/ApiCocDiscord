@@ -13,26 +13,13 @@ el resto del texto después del nombre del comando (ej. el tag en
 — la mayoría de los comandos ignoran ambos.
 """
 import logging
-import re
 
 from aiohttp import web
 
 import config
+import whatsapp
 
 log = logging.getLogger("apicocdiscord")
-
-
-def _a_formato_whatsapp(texto: str) -> str:
-    # Discord usa **negrita**, WhatsApp usa *negrita* — sin esto se ven los
-    # asteriscos dobles literales en el grupo.
-    texto = re.sub(r"\*\*(.+?)\*\*", r"*\1*", texto)
-    # Los `backticks` de Discord (monoespaciado) no se soportan igual en
-    # WhatsApp y quedan mostrando simbolos raros o cajas inconsistentes.
-    # Se sacan del todo; el espacio de relleno que dejaban (para alinear
-    # numeros de ranking) se limpia despues.
-    texto = texto.replace("`", "")
-    texto = re.sub(r"^ +", "", texto, flags=re.MULTILINE)
-    return texto
 
 
 def _crear_app(bot) -> web.Application:
@@ -72,7 +59,7 @@ def _crear_app(bot) -> web.Application:
             lineas, menciones = resultado, []
 
         return web.json_response({
-            "texto": _a_formato_whatsapp("\n".join(lineas)),
+            "texto": whatsapp.formatear_para_whatsapp("\n".join(lineas)),
             "menciones": menciones,
         })
 
