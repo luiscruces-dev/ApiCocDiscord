@@ -98,6 +98,19 @@ desde Discord sigue andando igual.
 si usás tu WhatsApp personal para probar), esos otros grupos se ignoran por
 completo — nunca les contesta nada.
 
+Cada remitente tiene un cooldown (`COMANDO_COOLDOWN_MS`, default 5s) entre
+un comando y el siguiente — si insiste antes de que pase ese tiempo, el
+puente lo ignora en silencio (no manda ningún aviso, para no sumar más
+mensajes al ruido).
+
+**Ojo si probás con tu WhatsApp personal:** mientras el número vinculado
+sea el tuyo, los mensajes que escribís vos mismo en el grupo llegan como
+`fromMe: true` (WhatsApp no distingue "el bot lo mandó" de "yo lo escribí
+desde el celu", porque es la misma cuenta) — el puente los ignora a
+propósito para no auto-responderse en loop. Esto se resuelve solo en
+cuanto vinculen el número dedicado: ahí los mensajes de miembros reales del
+grupo no son `fromMe` y sí disparan los comandos.
+
 ## Endpoints
 
 Todos requieren el header `Authorization: Bearer <BRIDGE_TOKEN>`.

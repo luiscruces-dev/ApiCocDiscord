@@ -14,6 +14,7 @@ const BRIDGE_TOKEN = process.env.BRIDGE_TOKEN;
 const GROUP_ID = process.env.WHATSAPP_GROUP_ID;
 const BOT_API_URL = process.env.BOT_API_URL;
 const BOT_API_TOKEN = process.env.BOT_API_TOKEN;
+const COMANDO_COOLDOWN_MS = Number(process.env.COMANDO_COOLDOWN_MS || 5000);
 
 if (!BRIDGE_TOKEN) {
   console.error(
@@ -25,6 +26,7 @@ if (!BRIDGE_TOKEN) {
 let sock = null;
 let conectado = false;
 let ultimoQR = null;
+const ultimoComandoPorRemitente = new Map();
 
 // Comandos de solo lectura escritos en el grupo (ej. "/miembros") se
 // reenvian al bot de Discord, que es el unico que habla con la API de
@@ -38,6 +40,17 @@ async function manejarMensajeEntrante(msg) {
 
   const nombre = texto.slice(1).trim().split(/\s+/)[0].toLowerCase();
   if (!nombre) return;
+
+  // Un remitente no puede disparar mas de un comando cada COMANDO_COOLDOWN_MS,
+  // para que nadie inunde el grupo insistiendo con el mismo comando.
+  const remitente = msg.key.participant || msg.key.remoteJid;
+  const ahora = Date.now();
+  const ultimo = ultimoComandoPorRemitente.get(remitente) || 0;
+  if (ahora - ultimo < COMANDO_COOLDOWN_MS) {
+    console.log(`Comando '${nombre}' de ${remitente} ignorado (cooldown)`);
+    return;
+  }
+  ultimoComandoPorRemitente.set(remitente, ahora);
 
   if (!BOT_API_URL || !BOT_API_TOKEN) {
     console.warn("Llego el comando '%s' pero BOT_API_URL/BOT_API_TOKEN no estan configurados, lo ignoro.", nombre);
