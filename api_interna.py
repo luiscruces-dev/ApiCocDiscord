@@ -22,7 +22,14 @@ log = logging.getLogger("apicocdiscord")
 def _a_formato_whatsapp(texto: str) -> str:
     # Discord usa **negrita**, WhatsApp usa *negrita* — sin esto se ven los
     # asteriscos dobles literales en el grupo.
-    return re.sub(r"\*\*(.+?)\*\*", r"*\1*", texto)
+    texto = re.sub(r"\*\*(.+?)\*\*", r"*\1*", texto)
+    # Los `backticks` de Discord (monoespaciado) no se soportan igual en
+    # WhatsApp y quedan mostrando simbolos raros o cajas inconsistentes.
+    # Se sacan del todo; el espacio de relleno que dejaban (para alinear
+    # numeros de ranking) se limpia despues.
+    texto = texto.replace("`", "")
+    texto = re.sub(r"^ +", "", texto, flags=re.MULTILINE)
+    return texto
 
 
 def _crear_app(bot) -> web.Application:
