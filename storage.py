@@ -72,6 +72,10 @@ CREATE TABLE IF NOT EXISTS avisos_inicio_guerra (
     opponent_tag TEXT,
     UNIQUE(start_time, opponent_tag)
 );
+
+CREATE TABLE IF NOT EXISTS avisos_temporada_cerrada (
+    temporada TEXT PRIMARY KEY
+);
 """
 
 
@@ -398,6 +402,18 @@ def marcar_guerra_inicio_avisado(con, start_time: str, opponent_tag: str):
         "INSERT OR IGNORE INTO avisos_inicio_guerra (start_time, opponent_tag) VALUES (?, ?)",
         (start_time, opponent_tag),
     )
+    con.commit()
+
+
+def temporada_cierre_avisado(con, temporada: str) -> bool:
+    fila = con.execute(
+        "SELECT 1 FROM avisos_temporada_cerrada WHERE temporada = ?", (temporada,)
+    ).fetchone()
+    return fila is not None
+
+
+def marcar_temporada_cierre_avisado(con, temporada: str):
+    con.execute("INSERT OR IGNORE INTO avisos_temporada_cerrada (temporada) VALUES (?)", (temporada,))
     con.commit()
 
 

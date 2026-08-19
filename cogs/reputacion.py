@@ -8,6 +8,7 @@ from discord.ext import commands, tasks
 import config
 import reputacion
 import storage
+import whatsapp
 from utils import enviar_en_paginas
 
 
@@ -17,12 +18,14 @@ class Reputacion(commands.Cog):
         self.db = storage.conectar()
         self.sincronizar_donaciones.start()
         self.revisar_capital.start()
+        self.revisar_cierre_temporada.start()
         bot.comandos_wa["reputacion"] = self._lineas_reputacion
         bot.comandos_wa["ayudarep"] = self._lineas_ayudarep
 
     def cog_unload(self):
         self.sincronizar_donaciones.cancel()
         self.revisar_capital.cancel()
+        self.revisar_cierre_temporada.cancel()
         self.db.close()
 
     @property
@@ -148,8 +151,49 @@ class Reputacion(commands.Cog):
         except Exception:
             logging.getLogger("apicocdiscord").exception("revisar_capital: error inesperado, reintento en 30 min")
 
+    @tasks.loop(hours=1)
+    async def revisar_cierre_temporada(self):
+        # No hay que adivinar fechas: temporadas_registradas() ya trae todas
+        # las temporadas con eventos guardados. Cualquiera que no sea la
+        # actual y todavia no este marcada como avisada, cerro y falta
+        # avisarla -- normalmente va a ser como mucho una por tick, salvo que
+        # el bot haya estado caido durante mas de un cierre de temporada.
+        try:
+            temporada_actual = reputacion.temporada_actual()
+            for temporada in storage.temporadas_registradas(self.db):
+                if temporada == temporada_actual:
+                    continue
+                if storage.temporada_cierre_avisado(self.db, temporada):
+                    continue
+
+                await self._avisar_cierre_temporada(temporada)
+                storage.marcar_temporada_cierre_avisado(self.db, temporada)
+        except Exception:
+            logging.getLogger("apicocdiscord").exception("revisar_cierre_temporada: error inesperado, reintento en 1h")
+
+    async def _avisar_cierre_temporada(self, temporada: str):
+        if not whatsapp.configurado():
+            return
+
+        resumen = storage.ranking_reputacion(self.db, temporada)
+        if not resumen:
+            return
+
+        ranking = sorted(resumen.items(), key=lambda kv: -kv[1]["total"])
+        medallas = ["🥇", "🥈", "🥉"]
+
+        lineas = [f"🏁 Cerró la temporada **{temporada}** — podio final de reputación:"]
+        for medalla, (_tag, r) in zip(medallas, ranking):
+            lineas.append(f"{medalla} **{r['nombre']}** — {r['total']:.0f} pts")
+
+        texto = whatsapp.formatear_para_whatsapp("\n".join(lineas))
+        ok, detalle = await whatsapp.enviar(texto)
+        if not ok:
+            logging.getLogger("apicocdiscord").warning("avisar_cierre_temporada: no se pudo enviar (%s)", detalle)
+
     @sincronizar_donaciones.before_loop
     @revisar_capital.before_loop
+    @revisar_cierre_temporada.before_loop
     async def antes_de_revisar(self):
         await self.bot.wait_until_ready()
 
