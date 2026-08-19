@@ -28,12 +28,30 @@ let conectado = false;
 let ultimoQR = null;
 const ultimoComandoPorRemitente = new Map();
 
+// IDs de mensajes que el propio bot mando (via /send o respondiendo un
+// comando). No se puede ignorar todo lo "fromMe" a lo bruto: mientras el
+// numero vinculado sea el personal de alguien del clan (no el dedicado
+// todavia), esa persona SI necesita poder escribir comandos de verdad
+// desde su propio numero, y WhatsApp marca eso tambien como fromMe. Asi
+// que solo se ignoran los mensajes que efectivamente somos nosotros
+// mismos mandando, identificados por su ID, no por ser fromMe en general.
+const misMensajesEnviados = new Set();
+const MAX_MIS_MENSAJES = 500;
+
+function registrarMensajePropio(id) {
+  if (!id) return;
+  misMensajesEnviados.add(id);
+  if (misMensajesEnviados.size > MAX_MIS_MENSAJES) {
+    misMensajesEnviados.delete(misMensajesEnviados.values().next().value);
+  }
+}
+
 // Comandos de solo lectura escritos en el grupo (ej. "/miembros") se
 // reenvian al bot de Discord, que es el unico que habla con la API de
 // Clash y con la base de datos. Este puente solo traduce ida y vuelta.
 async function manejarMensajeEntrante(msg) {
   if (!GROUP_ID || msg.key.remoteJid !== GROUP_ID) return;
-  if (msg.key.fromMe) return;
+  if (misMensajesEnviados.has(msg.key.id)) return;
 
   const texto = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
   if (!texto || !texto.startsWith("/")) return;
@@ -84,7 +102,8 @@ async function manejarMensajeEntrante(msg) {
     // reconstruyen aca. WhatsApp direcciona a cada participante por
     // @s.whatsapp.net o por @lid segun el caso, y adivinar mal el dominio
     // hace que no se reconozca como mencion real (queda como texto suelto).
-    await sock.sendMessage(GROUP_ID, { text: respuesta, mentions: menciones }, { quoted: msg });
+    const enviado = await sock.sendMessage(GROUP_ID, { text: respuesta, mentions: menciones }, { quoted: msg });
+    registrarMensajePropio(enviado?.key?.id);
   }
 }
 
@@ -157,7 +176,8 @@ app.post("/send", autenticar, async (req, res) => {
   }
 
   try {
-    await sock.sendMessage(GROUP_ID, { text, mentions: Array.isArray(mentions) ? mentions : [] });
+    const enviado = await sock.sendMessage(GROUP_ID, { text, mentions: Array.isArray(mentions) ? mentions : [] });
+    registrarMensajePropio(enviado?.key?.id);
     res.json({ ok: true });
   } catch (err) {
     console.error("Error enviando mensaje:", err);

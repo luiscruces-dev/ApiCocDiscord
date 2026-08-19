@@ -113,13 +113,16 @@ un comando y el siguiente — si insiste antes de que pase ese tiempo, el
 puente lo ignora en silencio (no manda ningún aviso, para no sumar más
 mensajes al ruido).
 
-**Ojo si probás con tu WhatsApp personal:** mientras el número vinculado
-sea el tuyo, los mensajes que escribís vos mismo en el grupo llegan como
-`fromMe: true` (WhatsApp no distingue "el bot lo mandó" de "yo lo escribí
-desde el celu", porque es la misma cuenta) — el puente los ignora a
-propósito para no auto-responderse en loop. Esto se resuelve solo en
-cuanto vinculen el número dedicado: ahí los mensajes de miembros reales del
-grupo no son `fromMe` y sí disparan los comandos.
+**Sobre el WhatsApp personal vinculado (mientras no haya número dedicado):**
+WhatsApp marca como `fromMe: true` tanto los mensajes que manda el propio
+bot como los que escribís vos mismo desde tu celular, porque es la misma
+cuenta — no hay forma de distinguirlos por ese campo solo. Por eso el
+puente NO ignora todo lo `fromMe`: en cambio, guarda el ID exacto de cada
+mensaje que él mismo mandó (`misMensajesEnviados` en `index.js`) e ignora
+solo esos. Así vos podés escribir comandos de verdad desde tu número
+mientras sea el vinculado, sin que el bot corra riesgo de contestarse a sí
+mismo en loop. Esto sigue funcionando igual de bien después de vincular el
+número dedicado — no hace falta tocar nada al migrar.
 
 ## Endpoints
 

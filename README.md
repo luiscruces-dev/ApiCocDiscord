@@ -22,6 +22,7 @@ WhatsApp configurado (ver "Puente a WhatsApp" más abajo).
 - `/ayudarep` 📱 — el bot explica en el propio Discord cómo funciona el sistema de reputación.
 - `/enviarwsp mensaje:` — reenvía un texto al grupo de WhatsApp del clan (requiere el puente de `whatsapp-bridge/`, ver más abajo). Solo para quienes pueden gestionar el servidor.
 - `/tags` 📱 — nombre y tag de cada miembro del clan, marcando quién todavía no vinculó su número (⚠️ sin vincular), para que cualquiera ubique el suyo y lo use en `/vincular`.
+- `/perfil <jugador>` 📱 — vista completa de una persona en un solo bloque: reputación de la temporada (por categoría), KDA histórico de guerra, donaciones en vivo y capital del último Raid Weekend. En Discord `jugador` tiene autocomplete por nombre; en WhatsApp se escribe el tag o el nombre tal cual (ej. `/perfil jeho`). Si no hay datos en alguna sección (recién vinculado, sin guerras guardadas, etc.) avisa "sin datos todavía" en vez de omitirla.
 - `/comandos` 📱 — lista todos los comandos disponibles del bot (se genera solo, no hay que mantenerla a mano).
 
 Estos tres son exclusivos de WhatsApp (no existen como slash command de Discord, no tendría sentido ahí):

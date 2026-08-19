@@ -36,6 +36,7 @@ class ClanBot(commands.Bot):
         await self.load_extension("cogs.clan_games")
         await self.load_extension("cogs.reputacion")
         await self.load_extension("cogs.vinculos")
+        await self.load_extension("cogs.perfil")
         await self.load_extension("cogs.ayuda")
         await self.load_extension("cogs.whatsapp")
 
