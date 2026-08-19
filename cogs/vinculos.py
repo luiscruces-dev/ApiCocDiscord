@@ -28,17 +28,7 @@ from discord.ext import commands, tasks
 import config
 import storage
 import whatsapp
-
-
-def _tiempo_legible(segundos: int) -> str:
-    segundos = max(0, segundos)
-    horas, resto = divmod(segundos, 3600)
-    minutos = resto // 60
-    if horas and minutos:
-        return f"{horas}h {minutos}m"
-    if horas:
-        return f"{horas}h"
-    return f"{minutos}m"
+from utils import tiempo_legible
 
 
 class Vinculos(commands.Cog):
@@ -126,7 +116,7 @@ class Vinculos(commands.Cog):
 
     def _armar_recordatorio(self, guerra, faltan, encabezado: str | None = None) -> tuple[list[str], list[str]]:
         jids = storage.jids_por_tag(self.db)
-        tiempo = _tiempo_legible(guerra.end_time.seconds_until)
+        tiempo = tiempo_legible(guerra.end_time.seconds_until)
         encabezado = encabezado or f"Muchachos, recuerden atacar en guerra contra **{guerra.opponent.name}**"
         lineas = [f"{encabezado}, tienen {tiempo}:\n"]
         menciones = []
@@ -155,7 +145,11 @@ class Vinculos(commands.Cog):
         if estado == "sin_guerra":
             return ["El clan no está en guerra ahora mismo."], []
         if estado == "preparacion":
-            return ["La guerra está en día de preparación todavía, no se puede atacar hasta que empiece."], []
+            faltan_para_iniciar = tiempo_legible(guerra.start_time.seconds_until)
+            return [
+                f"La guerra vs **{guerra.opponent.name}** está en día de preparación todavía — "
+                f"arranca en aproximadamente {faltan_para_iniciar}."
+            ], []
         if estado == "terminada":
             return ["La guerra ya terminó."], []
 

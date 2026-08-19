@@ -5,7 +5,7 @@ from discord.ext import commands
 
 import config
 import storage
-from utils import enviar_en_paginas
+from utils import enviar_en_paginas, tiempo_legible
 
 ROLES_ES = {
     "member": "Miembro",
@@ -124,6 +124,14 @@ class ClanStats(commands.Cog):
 
         if guerra_actual is None or guerra_actual.state == "notInWar":
             return ["El clan no está en guerra ahora mismo."]
+
+        if guerra_actual.state == "preparation":
+            faltan_para_iniciar = tiempo_legible(guerra_actual.start_time.seconds_until)
+            return [
+                f"**Guerra vs {guerra_actual.opponent.name}** — día de preparación, "
+                f"arranca en aproximadamente {faltan_para_iniciar} · "
+                f"{guerra_actual.team_size} vs {guerra_actual.team_size}"
+            ]
 
         lineas = [
             f"**Guerra vs {guerra_actual.opponent.name}** — estado: {guerra_actual.state} · "

@@ -3,6 +3,17 @@ import discord
 LIMITE_CARACTERES = 1900  # margen bajo el limite de 2000 de Discord por mensaje por si acasito
 
 
+def tiempo_legible(segundos: int) -> str:
+    segundos = max(0, segundos)
+    horas, resto = divmod(segundos, 3600)
+    minutos = resto // 60
+    if horas and minutos:
+        return f"{horas}h {minutos}m"
+    if horas:
+        return f"{horas}h"
+    return f"{minutos}m"
+
+
 def dividir_en_bloques(lineas: list[str]) -> list[str]:
     bloques = []
     bloque = ""
