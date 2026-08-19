@@ -46,6 +46,20 @@ function registrarMensajePropio(id) {
   }
 }
 
+// Mensajes efimeros ("se borran solos") o "ver una vez" envuelven el
+// contenido real adentro de otro objeto -- si el grupo los tiene activados,
+// msg.message.conversation/extendedTextMessage quedan vacios y hay que
+// desenvolver primero.
+function contenidoReal(msg) {
+  const m = msg.message;
+  return m?.ephemeralMessage?.message || m?.viewOnceMessageV2?.message || m?.viewOnceMessage?.message || m;
+}
+
+function extraerTexto(msg) {
+  const contenido = contenidoReal(msg);
+  return contenido?.conversation || contenido?.extendedTextMessage?.text || null;
+}
+
 // Comandos de solo lectura escritos en el grupo (ej. "/miembros") se
 // reenvian al bot de Discord, que es el unico que habla con la API de
 // Clash y con la base de datos. Este puente solo traduce ida y vuelta.
@@ -53,7 +67,7 @@ async function manejarMensajeEntrante(msg) {
   if (!GROUP_ID || msg.key.remoteJid !== GROUP_ID) return;
   if (misMensajesEnviados.has(msg.key.id)) return;
 
-  const texto = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
+  const texto = extraerTexto(msg);
   if (!texto || !texto.startsWith("/")) return;
 
   const partes = texto.slice(1).trim().split(/\s+/);
@@ -121,6 +135,22 @@ async function iniciarWhatsApp() {
   sock.ev.on("messages.upsert", ({ messages, type }) => {
     if (type !== "notify") return;
     for (const msg of messages) {
+      // Diagnostico: se puede sacar mas adelante, pero mientras se
+      // depura por que algunos mensajes del grupo no disparan comandos,
+      // ayuda ver la forma real de cada mensaje que llega al grupo.
+      if (GROUP_ID && msg.key.remoteJid === GROUP_ID) {
+        console.log(
+          "MSG_DEBUG",
+          JSON.stringify({
+            fromMe: msg.key.fromMe,
+            id: msg.key.id,
+            participant: msg.key.participant || null,
+            esMensajePropioConocido: misMensajesEnviados.has(msg.key.id),
+            texto: extraerTexto(msg),
+            formaDelMensaje: msg.message ? Object.keys(msg.message) : null,
+          })
+        );
+      }
       manejarMensajeEntrante(msg).catch((err) => console.error("Error manejando mensaje entrante:", err));
     }
   });
