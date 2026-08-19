@@ -30,7 +30,8 @@ class Reputacion(commands.Cog):
         return self.bot.coc_client
 
     async def _lineas_reputacion(self, argumentos: str = "", remitente: str = "") -> list[str]:
-        temporada = reputacion.temporada_actual()
+        temporada_actual = reputacion.temporada_actual()
+        temporada = (argumentos or "").strip() or temporada_actual
         resumen = storage.ranking_reputacion(self.db, temporada)
         if not resumen:
             return [
@@ -38,10 +39,17 @@ class Reputacion(commands.Cog):
                 "con cada guerra guardada, cada hora con donaciones, y en cada cierre de capital o clan games."
             ]
 
-        fin = coc.utils.get_season_end().date().isoformat()
         ranking = sorted(resumen.items(), key=lambda kv: -kv[1]["total"])
 
-        lineas = [f"**Reputacion — temporada {temporada} a {fin}**\n"]
+        if temporada == temporada_actual:
+            # get_season_end() da la fecha de cierre de LA TEMPORADA EN CURSO
+            # nomas -- para una temporada pasada no aplica, ya cerro hace rato.
+            fin = coc.utils.get_season_end().date().isoformat()
+            encabezado = f"**Reputacion — temporada {temporada} a {fin}**\n"
+        else:
+            encabezado = f"**Reputacion — temporada {temporada}**\n"
+
+        lineas = [encabezado]
         for i, (_tag, r) in enumerate(ranking, start=1):
             cat = r["categorias"]
             guerra = cat.get("guerra_ataque", 0) + cat.get("guerra_defensa", 0) + cat.get("guerra_no_ataco", 0)
@@ -52,13 +60,23 @@ class Reputacion(commands.Cog):
             )
         return lineas
 
+    async def _autocomplete_temporada(
+        self, interaction: discord.Interaction, current: str
+    ) -> list[app_commands.Choice[str]]:
+        temporadas = storage.temporadas_registradas(self.db)
+        return [
+            app_commands.Choice(name=t, value=t) for t in temporadas if current.lower() in t.lower()
+        ][:25]
+
     @app_commands.command(
         name="reputacion",
         description="Ranking de reputacion de la temporada actual (guerra, donaciones, capital, clan games)",
     )
-    async def reputacion_cmd(self, interaction: discord.Interaction):
+    @app_commands.describe(temporada="Temporada pasada a consultar (dejar vacío para la actual)")
+    @app_commands.autocomplete(temporada=_autocomplete_temporada)
+    async def reputacion_cmd(self, interaction: discord.Interaction, temporada: str | None = None):
         await interaction.response.defer()
-        await enviar_en_paginas(interaction, await self._lineas_reputacion())
+        await enviar_en_paginas(interaction, await self._lineas_reputacion(argumentos=temporada or ""))
 
     async def _lineas_ayudarep(self, argumentos: str = "", remitente: str = "") -> list[str]:
         return [

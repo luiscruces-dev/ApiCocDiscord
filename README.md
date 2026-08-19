@@ -18,7 +18,7 @@ WhatsApp configurado (ver "Puente a WhatsApp" más abajo).
 - `/historial` 📱 — últimas guerras guardadas por el bot.
 - `/kda` 📱 — estadísticas acumuladas de ataque/defensa por jugador, de las guerras guardadas hasta ahora.
 - `/clangames iniciar` / `/clangames cerrar` — miden los puntos de Clan Games a mano (la API solo da el acumulado de toda la vida, no el del evento actual — ver "Limitaciones" más abajo). También se disparan solos: un loop de fondo revisa la fecha (calendario fijo 22-28 de cada mes, UTC) y abre/cierra la medición automáticamente, avisando en el canal que configures con `CLAN_GAMES_CHANNEL_ID` en `.env`. Exclusivo de Discord a propósito: cambia estado, no se expone por WhatsApp.
-- `/reputacion` 📱 — ranking de reputación de la temporada actual. La fórmula (pesos, multiplicadores por diferencia de TH, penalizaciones) está en [reputacion.py](reputacion.py).
+- `/reputacion` 📱 — ranking de reputación de la temporada actual. Con `temporada:` (autocomplete en Discord con las temporadas guardadas; en WhatsApp se escribe la fecha tal cual, ej. `/reputacion 2026-07-27`) muestra el ranking final de una temporada pasada. La fórmula (pesos, multiplicadores por diferencia de TH, penalizaciones) está en [reputacion.py](reputacion.py).
 - `/ayudarep` 📱 — el bot explica en el propio Discord cómo funciona el sistema de reputación.
 - `/enviarwsp mensaje:` — reenvía un texto al grupo de WhatsApp del clan (requiere el puente de `whatsapp-bridge/`, ver más abajo). Solo para quienes pueden gestionar el servidor.
 - `/tags` 📱 — nombre y tag de cada miembro del clan, marcando quién todavía no vinculó su número (⚠️ sin vincular), para que cualquiera ubique el suyo y lo use en `/vincular`.
