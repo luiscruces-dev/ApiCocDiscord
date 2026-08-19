@@ -19,7 +19,8 @@ from discord.ext import commands, tasks
 
 import config
 import storage
-from utils import enviar_en_paginas, enviar_en_paginas_canal
+import whatsapp
+from utils import enviar_en_paginas
 
 ESTADO_GUERRA_LEGIBLE = {"won": "GANADA", "lost": "PERDIDA", "tie": "EMPATE"}
 
@@ -65,10 +66,10 @@ class HistorialGuerras(commands.Cog):
         await self.bot.wait_until_ready()
 
     async def _avisar_resultado_guerra(self, war):
-        if not config.WAR_RESULT_CHANNEL_ID:
-            return
-        canal = self.bot.get_channel(int(config.WAR_RESULT_CHANNEL_ID))
-        if not canal:
+        # Va al grupo de WhatsApp como el resto de los avisos automaticos
+        # (aviso_inicio_guerra / recordatorio_automatico en vinculos.py),
+        # no a Discord -- ahi no se usa el bot como tal.
+        if not whatsapp.configurado():
             return
 
         estado = ESTADO_GUERRA_LEGIBLE.get(war.status, war.status)
@@ -90,7 +91,10 @@ class HistorialGuerras(commands.Cog):
         if no_atacaron:
             lineas.append(f"⚠️ No atacaron: {', '.join(no_atacaron)}")
 
-        await enviar_en_paginas_canal(canal, lineas)
+        texto = whatsapp.formatear_para_whatsapp("\n".join(lineas))
+        ok, detalle = await whatsapp.enviar(texto)
+        if not ok:
+            logging.getLogger("apicocdiscord").warning("avisar_resultado_guerra: no se pudo enviar (%s)", detalle)
 
     async def _lineas_historial(self, argumentos: str = "", remitente: str = "") -> list[str]:
         filas = storage.ultimas_guerras(self.db, limite=10)

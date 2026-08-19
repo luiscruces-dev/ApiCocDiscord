@@ -15,7 +15,7 @@ WhatsApp configurado (ver "Puente a WhatsApp" más abajo).
 - `/donaciones` 📱 — ranking de donaciones (dadas, recibidas y ratio).
 - `/capital` 📱 — ranking de oro saqueado en el último Raid Weekend.
 - `/guerra` 📱 — estado de la guerra actual, ataques usados, estrellas y % de destrucción por miembro.
-- `/historial` 📱 — últimas guerras guardadas por el bot. Apenas termina cada guerra, un loop de fondo la guarda y de paso anuncia resultado + MVP (más estrellas, empate por destrucción promedio) + quién no atacó, en el canal que configures con `WAR_RESULT_CHANNEL_ID` en `.env`. Sin esa variable, sigue guardando igual, solo que no avisa.
+- `/historial` 📱 — últimas guerras guardadas por el bot. Apenas termina cada guerra, un loop de fondo la guarda y de paso anuncia resultado + MVP (más estrellas, empate por destrucción promedio) + quién no atacó, en el grupo de WhatsApp (requiere el puente configurado, ver "Puente a WhatsApp" más abajo).
 - `/kda` 📱 — estadísticas acumuladas de ataque/defensa por jugador, de las guerras guardadas hasta ahora.
 - `/clangames iniciar` / `/clangames cerrar` — miden los puntos de Clan Games a mano (la API solo da el acumulado de toda la vida, no el del evento actual — ver "Limitaciones" más abajo). También se disparan solos: un loop de fondo revisa la fecha (calendario fijo 22-28 de cada mes, UTC) y abre/cierra la medición automáticamente, avisando en el canal que configures con `CLAN_GAMES_CHANNEL_ID` en `.env`. Exclusivo de Discord a propósito: cambia estado, no se expone por WhatsApp.
 - `/reputacion` 📱 — ranking de reputación de la temporada actual. Con `temporada:` (autocomplete en Discord con las temporadas guardadas; en WhatsApp se escribe la fecha tal cual, ej. `/reputacion 2026-07-27`) muestra el ranking final de una temporada pasada. La fórmula (pesos, multiplicadores por diferencia de TH, penalizaciones) está en [reputacion.py](reputacion.py).
@@ -62,7 +62,6 @@ Copia `.env.example` a `.env` y completa:
 - `CLAN_TAG` (con el `#`, ej. `#2ABC123XY`)
 - `GUILD_ID` (opcional, recomendado en desarrollo: activa el modo desarrollador en Discord y copia el ID de tu servidor, así los slash commands aparecen al instante en vez de tardar ~1h)
 - `CLAN_GAMES_CHANNEL_ID` (opcional, ID del canal donde el bot avisa cuando abre/cierra la medición automática de Clan Games)
-- `WAR_RESULT_CHANNEL_ID` (opcional, ID del canal donde el bot anuncia resultado + MVP apenas termina cada guerra — puede ser el mismo canal de arriba u otro distinto)
 
 ### 4. Correr
 ```bash
