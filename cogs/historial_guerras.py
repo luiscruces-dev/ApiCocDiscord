@@ -19,7 +19,9 @@ from discord.ext import commands, tasks
 
 import config
 import storage
-from utils import enviar_en_paginas
+from utils import enviar_en_paginas, enviar_en_paginas_canal
+
+ESTADO_GUERRA_LEGIBLE = {"won": "GANADA", "lost": "PERDIDA", "tie": "EMPATE"}
 
 
 class HistorialGuerras(commands.Cog):
@@ -52,6 +54,7 @@ class HistorialGuerras(commands.Cog):
                 return
 
             storage.guardar_guerra(self.db, war)
+            await self._avisar_resultado_guerra(war)
         except coc.HTTPException as e:
             logging.getLogger("apicocdiscord").warning("revisar_guerra: error de la API, reintento en 10 min (%s)", e)
         except Exception:
@@ -60,6 +63,34 @@ class HistorialGuerras(commands.Cog):
     @revisar_guerra.before_loop
     async def antes_de_revisar(self):
         await self.bot.wait_until_ready()
+
+    async def _avisar_resultado_guerra(self, war):
+        if not config.WAR_RESULT_CHANNEL_ID:
+            return
+        canal = self.bot.get_channel(int(config.WAR_RESULT_CHANNEL_ID))
+        if not canal:
+            return
+
+        estado = ESTADO_GUERRA_LEGIBLE.get(war.status, war.status)
+        lineas = [f"Guerra vs **{war.opponent.name}** terminó: **{estado}**"]
+
+        mvp = max(
+            war.clan.members,
+            key=lambda m: (
+                m.star_count,
+                sum(a.destruction for a in m.attacks) / len(m.attacks) if m.attacks else 0,
+            ),
+            default=None,
+        )
+        if mvp:
+            prom_destruccion = sum(a.destruction for a in mvp.attacks) / len(mvp.attacks) if mvp.attacks else 0
+            lineas.append(f"🏆 MVP: **{mvp.name}** — {mvp.star_count} estrellas, {prom_destruccion:.0f}% destrucción promedio")
+
+        no_atacaron = [m.name for m in war.clan.members if len(m.attacks) < war.attacks_per_member]
+        if no_atacaron:
+            lineas.append(f"⚠️ No atacaron: {', '.join(no_atacaron)}")
+
+        await enviar_en_paginas_canal(canal, lineas)
 
     async def _lineas_historial(self, argumentos: str = "", remitente: str = "") -> list[str]:
         filas = storage.ultimas_guerras(self.db, limite=10)
