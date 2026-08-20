@@ -28,6 +28,7 @@ class ClanStats(commands.Cog):
         bot.comandos_wa["donaciones"] = self._lineas_donaciones
         bot.comandos_wa["capital"] = self._lineas_capital
         bot.comandos_wa["guerra"] = self._lineas_guerra
+        bot.comandos_wa["rival"] = self._lineas_rival
         bot.comandos_wa["tags"] = self._lineas_tags
 
     def cog_unload(self):
@@ -108,30 +109,40 @@ class ClanStats(commands.Cog):
         await interaction.response.defer()
         await enviar_en_paginas(interaction, await self._lineas_capital())
 
-    async def _lineas_guerra(self, argumentos: str = "", remitente: str = "") -> list[str]:
+    async def _obtener_guerra_o_mensaje(self, titulo: str):
+        """(guerra, None) si hay guerra con detalle para mostrar (en curso o
+        recien terminada), o (None, lineas) con el mensaje a devolver
+        directo (error, sin guerra, o en dia de preparacion)."""
         try:
-            guerra_actual = await self.coc_client.get_current_war(config.CLAN_TAG)
+            guerra = await self.coc_client.get_current_war(config.CLAN_TAG)
         except coc.PrivateWarLog:
-            return [
+            return None, [
                 "El registro de guerra de este clan está en privado. "
                 "Actívalo in-game en Ajustes del clan para poder ver esto."
             ]
         except coc.HTTPException:
-            return [
+            return None, [
                 "La API tuvo un error consultando la guerra (pasa seguido justo en transiciones de ronda de CWL). "
                 "Intenta de nuevo en un rato."
             ]
 
-        if guerra_actual is None or guerra_actual.state == "notInWar":
-            return ["El clan no está en guerra ahora mismo."]
+        if guerra is None or guerra.state == "notInWar":
+            return None, ["El clan no está en guerra ahora mismo."]
 
-        if guerra_actual.state == "preparation":
-            faltan_para_iniciar = tiempo_legible(guerra_actual.start_time.seconds_until)
-            return [
-                f"**Guerra vs {guerra_actual.opponent.name}** — día de preparación, "
+        if guerra.state == "preparation":
+            faltan_para_iniciar = tiempo_legible(guerra.start_time.seconds_until)
+            return None, [
+                f"**{titulo} {guerra.opponent.name}** — día de preparación, "
                 f"arranca en aproximadamente {faltan_para_iniciar} · "
-                f"{guerra_actual.team_size} vs {guerra_actual.team_size}"
+                f"{guerra.team_size} vs {guerra.team_size}"
             ]
+
+        return guerra, None
+
+    async def _lineas_guerra(self, argumentos: str = "", remitente: str = "") -> list[str]:
+        guerra_actual, mensaje = await self._obtener_guerra_o_mensaje("Guerra vs")
+        if mensaje:
+            return mensaje
 
         lineas = [
             f"**Guerra vs {guerra_actual.opponent.name}** — estado: {guerra_actual.state} · "
@@ -149,6 +160,44 @@ class ClanStats(commands.Cog):
     async def guerra(self, interaction: discord.Interaction):
         await interaction.response.defer()
         await enviar_en_paginas(interaction, await self._lineas_guerra())
+
+    async def _lineas_rival(self, argumentos: str = "", remitente: str = "") -> list[str]:
+        guerra, mensaje = await self._obtener_guerra_o_mensaje("Rival:")
+        if mensaje:
+            return mensaje
+
+        lineas = [f"**Rival — {guerra.opponent.name}** ({guerra.team_size} vs {guerra.team_size})\n"]
+
+        conteo_nuestro: dict[int, int] = {}
+        for m in guerra.clan.members:
+            conteo_nuestro[m.town_hall] = conteo_nuestro.get(m.town_hall, 0) + 1
+        conteo_rival: dict[int, int] = {}
+        for m in guerra.opponent.members:
+            conteo_rival[m.town_hall] = conteo_rival.get(m.town_hall, 0) + 1
+
+        lineas.append("**Balance de TH:**")
+        for th in sorted(set(conteo_nuestro) | set(conteo_rival), reverse=True):
+            lineas.append(f"TH{th} — nosotros: {conteo_nuestro.get(th, 0)} · rival: {conteo_rival.get(th, 0)}")
+        lineas.append("")
+
+        nuestro_por_posicion = {m.map_position: m for m in guerra.clan.members}
+        lineas.append("**Bases enemigas:**")
+        for m in sorted(guerra.opponent.members, key=lambda m: m.map_position):
+            mejor_destruccion = max((a.destruction for a in m.attacks), default=0)
+            espejo = nuestro_por_posicion.get(m.map_position)
+            espejo_texto = f" · espejo: **{espejo.name}** (TH{espejo.town_hall})" if espejo else ""
+            lineas.append(
+                f"`{m.map_position:>2}.` **{m.name}** (TH{m.town_hall}) — {len(m.attacks)}/{guerra.attacks_per_member} "
+                f"ataques · Estrellas: {m.star_count} · {mejor_destruccion:.0f}% mejor destrucción{espejo_texto}"
+            )
+        return lineas
+
+    @app_commands.command(
+        name="rival", description="Estado del clan rival en la guerra actual: bases, TH y espejo con el nuestro"
+    )
+    async def rival(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        await enviar_en_paginas(interaction, await self._lineas_rival())
 
 
 async def setup(bot: commands.Bot):

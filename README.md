@@ -15,6 +15,7 @@ WhatsApp configurado (ver "Puente a WhatsApp" más abajo).
 - `/donaciones` 📱 — ranking de donaciones (dadas, recibidas y ratio).
 - `/capital` 📱 — ranking de oro saqueado en el último Raid Weekend.
 - `/guerra` 📱 — estado de la guerra actual, ataques usados, estrellas y % de destrucción por miembro.
+- `/rival` 📱 — lo mismo pero del lado del rival: bases enemigas (TH, ataques recibidos, estrellas, % destrucción) con su "espejo" del propio clan (mismo `map_position`), más un balance de cuántos TH tiene cada bando.
 - `/historial` 📱 — últimas guerras guardadas por el bot. Apenas termina cada guerra, un loop de fondo la guarda y de paso anuncia resultado + MVP (más estrellas, empate por destrucción promedio) + quién no atacó, en el grupo de WhatsApp (requiere el puente configurado, ver "Puente a WhatsApp" más abajo).
 - `/kda` 📱 — estadísticas acumuladas de ataque/defensa por jugador, de las guerras guardadas hasta ahora.
 - `/clangames iniciar` / `/clangames cerrar` — miden los puntos de Clan Games a mano (la API solo da el acumulado de toda la vida, no el del evento actual — ver "Limitaciones" más abajo). También se disparan solos: un loop de fondo revisa la fecha (calendario fijo 22-28 de cada mes, UTC) y abre/cierra la medición automáticamente, avisando en el canal que configures con `CLAN_GAMES_CHANNEL_ID` en `.env`. Exclusivo de Discord a propósito: cambia estado, no se expone por WhatsApp.
