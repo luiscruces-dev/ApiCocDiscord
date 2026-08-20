@@ -51,54 +51,65 @@ class Estimacion(commands.Cog):
         stats_clan = storage.stats_por_diferencia_th(self.db)
         rival_por_posicion = {m.map_position: m for m in guerra.opponent.members}
 
-        total_estimado = 0.0
-        total_posible = guerra.team_size * guerra.attacks_per_member * 3
+        # El maximo real de una guerra es team_size * 3 (3 estrellas por
+        # base rival, sin importar cuantos ataques reciba) -- NO
+        # attacks_per_member * 3. war.clan.stars/max_stars ya lo calculan
+        # bien del lado oficial, mejor usar eso que sumarlo a mano.
+        total_estimado = float(guerra.clan.stars)
+        total_posible = guerra.clan.max_stars
         lineas_detalle = []
 
         for m in sorted(guerra.clan.members, key=lambda m: m.map_position):
             rival = rival_por_posicion.get(m.map_position)
             usados = len(m.attacks)
             pendientes = guerra.attacks_per_member - usados
-            total_estimado += m.star_count
 
             if not rival:
                 lineas_detalle.append(f"`{m.map_position:>2}.` **{m.name}** — sin rival asignado en esa posición")
                 continue
 
+            # best_opponent_attack es el mejor resultado que YA le sacamos a
+            # esa base puntual (no m.star_count, que es la suma de estrellas
+            # del jugador en SUS ataques y puede superar 3 si reataco la
+            # misma base o no coincide con lo que cuenta para el marcador
+            # oficial de la guerra).
+            estrellas_en_base = rival.best_opponent_attack.stars if rival.best_opponent_attack else 0
             diferencia = rival.town_hall - m.town_hall
             comparacion = f"{diferencia:+d}" if diferencia else "mismo TH"
 
-            if pendientes <= 0:
+            if pendientes <= 0 or estrellas_en_base >= 3:
+                extra = f", ya usó los {usados} ataques" if usados else ""
                 lineas_detalle.append(
                     f"`{m.map_position:>2}.` **{m.name}** (TH{m.town_hall}) vs **{rival.name}** "
-                    f"(TH{rival.town_hall}, {comparacion}) — {m.star_count}⭐ reales, ya usó los {usados} ataques"
+                    f"(TH{rival.town_hall}, {comparacion}) — {estrellas_en_base}⭐ en esa base{extra}"
                 )
                 continue
 
+            margen = 3 - estrellas_en_base  # techo real: no se puede pasar de 3 en una base
             stats, origen = self._estimar_para(m.tag, diferencia, stats_clan)
             if stats:
-                estimado_pendientes = stats["estrellas_prom"] * pendientes
+                estimado_pendientes = min(stats["estrellas_prom"] * pendientes, margen)
                 total_estimado += estimado_pendientes
                 fuente = "su propio historial" if origen == "personal" else "el historial del clan"
                 lineas_detalle.append(
                     f"`{m.map_position:>2}.` **{m.name}** (TH{m.town_hall}) vs **{rival.name}** "
-                    f"(TH{rival.town_hall}, {comparacion}) — {m.star_count}⭐ reales + ~{estimado_pendientes:.1f}⭐ "
-                    f"estimadas ({pendientes} pendiente{'s' if pendientes != 1 else ''}, según {fuente}: "
-                    f"{stats['estrellas_prom']:.1f}⭐ prom. en {stats['ataques']} ataques a esa diferencia)"
+                    f"(TH{rival.town_hall}, {comparacion}) — {estrellas_en_base}⭐ en esa base + "
+                    f"~{estimado_pendientes:.1f}⭐ estimadas ({pendientes} pendiente{'s' if pendientes != 1 else ''}, "
+                    f"según {fuente}: {stats['estrellas_prom']:.1f}⭐ prom. en {stats['ataques']} ataques a esa diferencia)"
                 )
             else:
                 lineas_detalle.append(
                     f"`{m.map_position:>2}.` **{m.name}** (TH{m.town_hall}) vs **{rival.name}** "
-                    f"(TH{rival.town_hall}, {comparacion}) — {m.star_count}⭐ reales, {pendientes} pendiente(s) "
-                    f"sin historial a esa diferencia todavía"
+                    f"(TH{rival.town_hall}, {comparacion}) — {estrellas_en_base}⭐ en esa base, "
+                    f"{pendientes} pendiente(s) sin historial a esa diferencia todavía"
                 )
 
         porcentaje = (total_estimado / total_posible * 100) if total_posible else 0
         lineas = [
             f"**Estimación — guerra vs {guerra.opponent.name}**",
-            "Los ataques ya hechos cuentan estrellas reales; los pendientes se estiman contra el espejo, "
-            "según el historial del clan por diferencia de TH (poca muestra todavía = estimación floja, "
-            "mirá el detalle de cada uno).\n",
+            "Las estrellas ya logradas son las oficiales de cada base rival; los ataques pendientes se estiman "
+            "contra el espejo (topeado en 3 por base), según el historial del clan por diferencia de TH (poca "
+            "muestra todavía = estimación floja, mirá el detalle de cada uno).\n",
             f"**Proyección total: ~{total_estimado:.0f}⭐ de {total_posible} posibles ({porcentaje:.0f}%)**\n",
         ]
         lineas.extend(lineas_detalle)
