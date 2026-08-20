@@ -242,6 +242,34 @@ def stats_por_jugador(con) -> dict:
     return stats
 
 
+def stats_por_diferencia_th(con, player_tag: str | None = None) -> dict:
+    """diferencia (enemy_th - player_th, ej. +1 = atacando un TH mas alto)
+    -> {ataques, estrellas_prom, destruccion_prom, triples_pct}. Sin
+    player_tag, junta los ataques de TODO el clan (para /estimacion cuando
+    no hay suficiente muestra personal); con player_tag, solo los de ese
+    jugador."""
+    query = (
+        "SELECT enemy_th - player_th AS diferencia, COUNT(*), AVG(stars), AVG(destruction), "
+        "SUM(CASE WHEN stars = 3 THEN 1 ELSE 0 END) "
+        "FROM ataques WHERE es_defensa = 0 AND enemy_th IS NOT NULL AND player_th IS NOT NULL"
+    )
+    params: tuple = ()
+    if player_tag:
+        query += " AND player_tag = ?"
+        params = (player_tag,)
+    query += " GROUP BY diferencia"
+
+    resultado = {}
+    for diferencia, cantidad, estrellas_prom, destruccion_prom, triples in con.execute(query, params).fetchall():
+        resultado[diferencia] = {
+            "ataques": cantidad,
+            "estrellas_prom": estrellas_prom,
+            "destruccion_prom": destruccion_prom,
+            "triples_pct": (triples / cantidad * 100) if cantidad else 0.0,
+        }
+    return resultado
+
+
 def sesion_clan_games_abierta(con):
     """id de la sesion abierta (sin cerrar todavia), o None si no hay ninguna."""
     fila = con.execute(
