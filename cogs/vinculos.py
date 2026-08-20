@@ -201,6 +201,7 @@ class Vinculos(commands.Cog):
                 guerra, faltan, encabezado="📢 *CLAN, HEMOS INICIADO GUERRA. RECUERDEN ATACAR*"
             )
             texto = whatsapp.formatear_para_whatsapp("\n".join(lineas))
+            await whatsapp.esperar_jitter(60)
             ok, detalle = await whatsapp.enviar(texto, mentions=menciones)
             if not ok:
                 logging.getLogger("apicocdiscord").warning("aviso_inicio_guerra: no se pudo enviar (%s)", detalle)
@@ -227,6 +228,7 @@ class Vinculos(commands.Cog):
 
             lineas, menciones = self._armar_recordatorio(guerra, faltan)
             texto = whatsapp.formatear_para_whatsapp("\n".join(lineas))
+            await whatsapp.esperar_jitter(180)
             ok, detalle = await whatsapp.enviar(texto, mentions=menciones)
             if not ok:
                 logging.getLogger("apicocdiscord").warning("recordatorio_automatico: no se pudo enviar (%s)", detalle)

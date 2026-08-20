@@ -60,6 +60,42 @@ function extraerTexto(msg) {
   return contenido?.conversation || contenido?.extendedTextMessage?.text || null;
 }
 
+function dormir(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Simula el tiempo que tardaria una persona en escribir el mensaje: un
+// "pensar" inicial random + tiempo por palabra, con piso y techo para que
+// nunca sea instantaneo ni eternamente largo. Todo esto es para que el
+// envio no tenga el patron "responde en 50ms, siempre exacto" tan tipico
+// de un bot -- no cambia que WhatsApp pueda reconocer la libreria a nivel
+// de protocolo, pero ayuda contra deteccion por comportamiento.
+function calcularDelayEnvio(texto) {
+  const palabras = (texto || "").trim().split(/\s+/).filter(Boolean).length;
+  const pensar = 800 + Math.random() * 1200; // 0.8-2s "leyendo/pensando"
+  const porPalabra = 120 + Math.random() * 130; // 120-250ms por palabra tipeada
+  const total = pensar + palabras * porPalabra;
+  return Math.min(Math.max(total, 1200), 8000); // entre 1.2s y 8s
+}
+
+// Punto unico de envio al grupo: manda presencia "escribiendo...", espera
+// el delay simulado, y recien ahi manda el mensaje. Usado tanto para
+// responder comandos como para /send (avisos automaticos).
+async function enviarConDelay(jid, contenido, opciones = {}) {
+  try {
+    await sock.sendPresenceUpdate("composing", jid);
+  } catch (err) {
+    // no es critico si esto falla, el mensaje se manda igual
+  }
+  await dormir(calcularDelayEnvio(contenido.text));
+  try {
+    await sock.sendPresenceUpdate("paused", jid);
+  } catch (err) {
+    // idem
+  }
+  return sock.sendMessage(jid, contenido, opciones);
+}
+
 // Comandos de solo lectura escritos en el grupo (ej. "/miembros") se
 // reenvian al bot de Discord, que es el unico que habla con la API de
 // Clash y con la base de datos. Este puente solo traduce ida y vuelta.
@@ -116,7 +152,7 @@ async function manejarMensajeEntrante(msg) {
     // reconstruyen aca. WhatsApp direcciona a cada participante por
     // @s.whatsapp.net o por @lid segun el caso, y adivinar mal el dominio
     // hace que no se reconozca como mencion real (queda como texto suelto).
-    const enviado = await sock.sendMessage(GROUP_ID, { text: respuesta, mentions: menciones }, { quoted: msg });
+    const enviado = await enviarConDelay(GROUP_ID, { text: respuesta, mentions: menciones }, { quoted: msg });
     registrarMensajePropio(enviado?.key?.id);
   }
 }
@@ -206,7 +242,7 @@ app.post("/send", autenticar, async (req, res) => {
   }
 
   try {
-    const enviado = await sock.sendMessage(GROUP_ID, { text, mentions: Array.isArray(mentions) ? mentions : [] });
+    const enviado = await enviarConDelay(GROUP_ID, { text, mentions: Array.isArray(mentions) ? mentions : [] });
     registrarMensajePropio(enviado?.key?.id);
     res.json({ ok: true });
   } catch (err) {

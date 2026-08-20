@@ -124,6 +124,20 @@ mientras sea el vinculado, sin que el bot corra riesgo de contestarse a sí
 mismo en loop. Esto sigue funcionando igual de bien después de vincular el
 número dedicado — no hace falta tocar nada al migrar.
 
+## Comportamiento "humano" al enviar
+
+Todo mensaje que manda el puente (respuestas a comandos y `/send`) pasa por
+`enviarConDelay()`: manda presencia "escribiendo..." primero, espera un
+delay simulado (0.8-2s "pensando" + ~120-250ms por palabra, entre 1.2s y
+8s en total), y recién ahí lo manda. Esto evita el patrón "responde en
+50ms, siempre exacto" típico de un bot. Los avisos automáticos (inicio de
+guerra, recordatorio, fin de guerra, cierre de temporada) además esperan
+un jitter random (`whatsapp.esperar_jitter()` del lado del bot de Discord,
+antes de llamar a `/send`) para que la cadencia tampoco caiga siempre
+justo en el mismo instante del intervalo. Nada de esto hace que Baileys
+sea indetectable a nivel de protocolo — WhatsApp puede reconocer la
+librería igual — pero baja el riesgo de detección por *comportamiento*.
+
 ## Endpoints
 
 Todos requieren el header `Authorization: Bearer <BRIDGE_TOKEN>`.

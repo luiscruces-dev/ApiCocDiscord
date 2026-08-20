@@ -92,6 +92,7 @@ class HistorialGuerras(commands.Cog):
             lineas.append(f"⚠️ No atacaron: {', '.join(no_atacaron)}")
 
         texto = whatsapp.formatear_para_whatsapp("\n".join(lineas))
+        await whatsapp.esperar_jitter(60)
         ok, detalle = await whatsapp.enviar(texto)
         if not ok:
             logging.getLogger("apicocdiscord").warning("avisar_resultado_guerra: no se pudo enviar (%s)", detalle)

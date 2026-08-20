@@ -1,4 +1,6 @@
+import asyncio
 import logging
+import random
 import re
 
 import httpx
@@ -10,6 +12,15 @@ log = logging.getLogger("apicocdiscord")
 
 def configurado() -> bool:
     return bool(config.WHATSAPP_BRIDGE_URL and config.WHATSAPP_BRIDGE_TOKEN)
+
+
+async def esperar_jitter(maximo_segundos: float):
+    """Pausa un tiempo random (0 a maximo_segundos) antes de mandar un aviso
+    automatico, para que la cadencia de mensajes no caiga siempre justo en
+    el mismo instante del intervalo — un patron muy regular es lo tipico de
+    un script, no de una persona avisando algo."""
+    if maximo_segundos > 0:
+        await asyncio.sleep(random.uniform(0, maximo_segundos))
 
 
 def formatear_para_whatsapp(texto: str) -> str:

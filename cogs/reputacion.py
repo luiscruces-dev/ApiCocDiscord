@@ -187,6 +187,7 @@ class Reputacion(commands.Cog):
             lineas.append(f"{medalla} **{r['nombre']}** — {r['total']:.0f} pts")
 
         texto = whatsapp.formatear_para_whatsapp("\n".join(lineas))
+        await whatsapp.esperar_jitter(120)
         ok, detalle = await whatsapp.enviar(texto)
         if not ok:
             logging.getLogger("apicocdiscord").warning("avisar_cierre_temporada: no se pudo enviar (%s)", detalle)
