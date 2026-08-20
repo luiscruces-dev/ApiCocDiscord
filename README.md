@@ -27,7 +27,7 @@ WhatsApp configurado (ver "Puente a WhatsApp" más abajo).
 
 Estos tres son exclusivos de WhatsApp (no existen como slash command de Discord, no tendría sentido ahí):
 
-- `/vincular <tag>` — asocia tu número de WhatsApp con un tag de jugador, para que `/recordar` te pueda etiquetar directo. Soporta multicuenta: mandalo de nuevo con otro tag y se suma, no reemplaza el anterior. Única excepción a "solo lectura": no afecta al clan, en el peor caso te vinculás con el tag equivocado y lo corregís mandando el comando de nuevo.
+- `/vincular <tag>` — asocia tu número de WhatsApp con un tag de jugador, para que `/recordar` te pueda etiquetar directo. Relación muchos-a-muchos: soporta multicuenta (mandalo de nuevo con otro tag y se suma, no reemplaza el anterior) y también cuenta compartida (ej. una pareja jugando desde el mismo tag — si los dos se vinculan a esa cuenta, a los dos les llega la mención). Única excepción a "solo lectura": no afecta al clan, en el peor caso te vinculás con el tag equivocado y lo corregís mandando el comando de nuevo.
 - `/desvincular` — sin argumento deshace todos tus vínculos; con `/desvincular <tag>` deshace solo esa cuenta.
 - `/recordar` — durante una guerra activa, lista quién le falta atacar; a quien esté vinculado lo etiqueta con una mención real de WhatsApp (no solo texto). Además de a pedido, dos loops de fondo avisan solos: uno manda un aviso especial ("hemos iniciado guerra") una sola vez apenas arranca cada guerra, y otro repite el recordatorio normal cada 4h mientras siga activa y falte alguien por atacar. Los dos son silenciosos el resto del tiempo (no avisan "no hay guerra" seguido).
 

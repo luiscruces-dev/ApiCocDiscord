@@ -1,8 +1,11 @@
 """
 Vincula un numero de WhatsApp con un tag de jugador del clan, para poder
 etiquetarlo directo cuando /recordar detecta que le faltan ataques en la
-guerra activa. Soporta multicuenta: un mismo numero puede tener varias
-cuentas vinculadas (cada /vincular con un tag nuevo suma, no reemplaza).
+guerra activa. Relacion muchos-a-muchos: un mismo numero puede tener
+varias cuentas vinculadas (multicuenta, cada /vincular con un tag nuevo
+suma, no reemplaza), y una misma cuenta puede tener mas de un numero
+vinculado (ej. una pareja que juega desde un tag compartido — a los dos
+les llega la mencion cuando le falta atacar a esa cuenta).
 
 A diferencia del resto de comandos_wa, estos SI escriben en la base de
 datos (ver README de whatsapp-bridge, que documenta por que los comandos
@@ -72,10 +75,21 @@ class Vinculos(commands.Cog):
             f"Listo, quedaste vinculado a **{miembro.name}** ({miembro.tag}). "
             f"Te voy a etiquetar en `/recordar` si te faltan ataques de guerra."
         ]
+
         cuentas = storage.tags_de_jid(self.db, remitente)
         if len(cuentas) > 1:
             nombres = ", ".join(nombre for _tag, nombre in cuentas)
             lineas.append(f"Tenés {len(cuentas)} cuentas vinculadas a este número: {nombres}.")
+
+        otros_numeros = [jid for jid in storage.jids_de_tag(self.db, miembro.tag) if jid != remitente]
+        if otros_numeros:
+            # Cuenta compartida (ej. una pareja): a partir de ahora se
+            # etiqueta a todos los numeros vinculados a esta cuenta, no
+            # solo al que acaba de escribir /vincular.
+            lineas.append(
+                f"Ojo: esta cuenta ya tenía {len(otros_numeros)} número(s) vinculado(s) — "
+                f"ahora a todos les va a llegar la mención en `/recordar`."
+            )
         return lineas
 
     async def _desvincular(self, argumentos: str = "", remitente: str = "") -> list[str]:
@@ -122,15 +136,18 @@ class Vinculos(commands.Cog):
         menciones = []
         for m in sorted(faltan, key=lambda m: m.map_position):
             usados = len(m.attacks)
-            jid = jids.get(m.tag)
-            if jid:
+            jids_cuenta = jids.get(m.tag, [])
+            if jids_cuenta:
                 # El JID real (con su dominio real: @s.whatsapp.net o @lid segun
                 # como direccione WhatsApp a esta persona en el grupo) va tal
                 # cual en "menciones" — el puente NO debe reconstruirlo a mano,
                 # porque adivinar mal el dominio hace que WhatsApp no lo
-                # reconozca como mencion real.
-                quien = f"@{jid.split('@')[0]} ({m.name})"
-                menciones.append(jid)
+                # reconozca como mencion real. Si la cuenta tiene mas de un
+                # numero vinculado (ej. una pareja compartiendo un tag), se
+                # etiqueta a todos.
+                menciones_texto = " ".join(f"@{jid.split('@')[0]}" for jid in jids_cuenta)
+                quien = f"{menciones_texto} ({m.name})"
+                menciones.extend(jids_cuenta)
             else:
                 quien = m.name
             lineas.append(f"- {quien} — {usados}/{guerra.attacks_per_member} ataques")
