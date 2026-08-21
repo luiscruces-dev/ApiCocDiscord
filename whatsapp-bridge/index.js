@@ -60,6 +60,16 @@ function extraerTexto(msg) {
   return contenido?.conversation || contenido?.extendedTextMessage?.text || null;
 }
 
+// Si el mensaje es una respuesta (citando/"deslizando sobre" otro mensaje),
+// devuelve el JID de quien escribio el mensaje citado -- tal cual, sin
+// reconstruirlo, mismo criterio que las menciones de /recordar. Sirve para
+// comandos como /cagarse que quieren apuntar a "la persona que cite" en vez
+// de que el remitente tenga que escribir su nombre a mano.
+function extraerCitado(msg) {
+  const contenido = contenidoReal(msg);
+  return contenido?.extendedTextMessage?.contextInfo?.participant || null;
+}
+
 function dormir(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -136,7 +146,7 @@ async function manejarMensajeEntrante(msg) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${BOT_API_TOKEN}`,
       },
-      body: JSON.stringify({ nombre, argumentos, remitente }),
+      body: JSON.stringify({ nombre, argumentos, remitente, citado: extraerCitado(msg) }),
     });
     const datos = await resp.json();
     respuesta = resp.ok ? datos.texto : datos.error || "Error desconocido consultando el bot de Discord.";

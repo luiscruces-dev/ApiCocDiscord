@@ -12,6 +12,7 @@ el resto del texto después del nombre del comando (ej. el tag en
 "/vincular #ABC123"), y remitente es el JID de WhatsApp de quien lo escribió
 — la mayoría de los comandos ignoran ambos.
 """
+import inspect
 import logging
 
 from aiohttp import web
@@ -37,6 +38,7 @@ def _crear_app(bot) -> web.Application:
         nombre = (datos.get("nombre") or "").strip().lower()
         argumentos = (datos.get("argumentos") or "").strip()
         remitente = (datos.get("remitente") or "").strip()
+        citado = (datos.get("citado") or "").strip()
         fn = bot.comandos_wa.get(nombre)
         if not fn:
             disponibles = ", ".join(sorted(bot.comandos_wa))
@@ -44,8 +46,16 @@ def _crear_app(bot) -> web.Application:
                 {"error": f"Comando desconocido. Disponibles: {disponibles}"}, status=404
             )
 
+        # "citado" (JID de quien escribio el mensaje que se cito/respondio,
+        # ej. deslizando sobre el en WhatsApp) es opcional -- solo se le pasa
+        # a los pocos comandos que lo declaran (ej. /cagarse), el resto ni se
+        # entera de que existe.
+        kwargs = {"argumentos": argumentos, "remitente": remitente}
+        if "citado" in inspect.signature(fn).parameters:
+            kwargs["citado"] = citado
+
         try:
-            resultado = await fn(argumentos, remitente)
+            resultado = await fn(**kwargs)
         except Exception:
             log.exception("api_interna: error ejecutando comando '%s' pedido desde WhatsApp", nombre)
             return web.json_response({"error": "Error interno ejecutando el comando"}, status=500)

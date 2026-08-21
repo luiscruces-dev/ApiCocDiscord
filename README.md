@@ -26,6 +26,7 @@ WhatsApp configurado (ver "Puente a WhatsApp" más abajo).
 - `/tags` 📱 — nombre y tag de cada miembro del clan, marcando quién todavía no vinculó su número (⚠️ sin vincular), para que cualquiera ubique el suyo y lo use en `/vincular`.
 - `/perfil <jugador>` 📱 — vista completa de una persona en un solo bloque: reputación de la temporada (por categoría), KDA histórico de guerra, donaciones en vivo y capital del último Raid Weekend. En Discord `jugador` tiene autocomplete por nombre; en WhatsApp se escribe el tag o el nombre tal cual (ej. `/perfil jeho`). Si no hay datos en alguna sección (recién vinculado, sin guerras guardadas, etc.) avisa "sin datos todavía" en vez de omitirla.
 - `/comandos` 📱 — lista todos los comandos disponibles del bot (se genera solo, no hay que mantenerla a mano).
+- `/cagarse <victima>` 📱 — comando de relajo: le tira un roast al azar (tono venezolano) a quien se mandó una cagada atacando. En Discord `victima` es una mención real (`@alguien`) y hay un `motivo` opcional; en WhatsApp se escribe el nombre tal cual y el motivo va después de un `|` (ej. `/cagarse Fulano | dejó el rey en la casa`). Puro chiste entre panas, no toca nada del clan ni de la base de datos.
 
 Estos tres son exclusivos de WhatsApp (no existen como slash command de Discord, no tendría sentido ahí):
 
