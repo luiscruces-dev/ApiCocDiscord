@@ -5,12 +5,16 @@ panas, no hay logica de Clash detras -- solo elige una frase al azar y la
 rellena con el nombre/mencion de la victima.
 
 Ademas de a pedido (/cagarse), un loop de fondo (revisar_ataques) detecta
-solo las cagadas de verdad durante una guerra activa: un ataque que saco 0 o
-1 estrella contra un rival del mismo TH o mas bajo (atacar hacia arriba y
-sacar poco ahi si es normal, no cuenta) dispara un roast automatico al grupo
-de WhatsApp -- igual que el resto de avisos automaticos del clan, nunca a
-Discord. Cada ataque se identifica por su "order" (unico dentro de la
-guerra), asi que no se repite en cada poll aunque el ataque siga en la lista.
+solo las cagadas de verdad durante una guerra activa y dispara un roast
+automatico al grupo de WhatsApp -- igual que el resto de avisos automaticos
+del clan, nunca a Discord. Dos casos, con tono distinto cada uno:
+- Ataca hacia abajo (rival de TH mas bajo) y no saca el pleno (3 estrellas):
+  no hay excusa, el TH estaba a favor -- FRASES_INFERIOR ("tratame en serio").
+- Ataca parejo o hacia arriba y saca 0 o 1 estrella: cagada normal, ahi si
+  hay margen -- FRASES de siempre.
+Atacar hacia arriba y sacar poco nunca cuenta (es lo esperable). Cada ataque
+se identifica por su "order" (unico dentro de la guerra), asi que no se
+repite en cada poll aunque el ataque siga en la lista.
 """
 import logging
 import random
@@ -60,9 +64,25 @@ FRASES = [
     "¡Ay {jugador}! Esa fue floja hasta pa'l TH9 de tu abuela.",
 ]
 
+# Caso aparte: atacar a un TH mas bajo y no sacar el pleno. Ahi no hay
+# excusa de dificultad -- el tono es mas de "faltarle el respeto al clan"
+# que de cagada comun.
+FRASES_INFERIOR = [
+    "Uy mano {jugador}, trátame en serio, ¿cómo no vas a sacar pleno contra un TH más bajo?",
+    "{jugador}, ese TH le quedó grande a la base y pequeño a la excusa. ¡Trátame en serio, pana!",
+    "¿En serio {jugador}? Le ganabas en TH y ni así completaste. Eso no se hace ni de vaina.",
+    "{jugador}, ese rival estaba más fácil que examen de kínder y tú ahí, dejando estrellas botadas.",
+    "¡Trátame en serio, {jugador}! Con esa ventaja de TH y no sacaste el pleno, eso ya es falta de respeto.",
+    "{jugador}, ibas ganando de arranque por TH y aun así la regaste. ¡Qué oso, mi pana!",
+    "Esa base estaba servida en bandeja, {jugador}, y tú la dejaste ahí, sin ni terminar el plato.",
+    "{jugador}, con ese TH de ventaja hasta mi abuela saca pleno. Trátame en serio.",
+    "¡Ni jugando en fácil, {jugador}! Bajaste a un TH menor y ni así completaste el ataque.",
+    "{jugador}, eso fue tirar el examen fácil a la basura. Un TH más bajo y no sacaste el pleno... ¡vergonzoso!",
+]
 
-def _armar_roast(jugador: str, motivo: str | None) -> str:
-    frase = random.choice(FRASES).format(jugador=jugador)
+
+def _armar_roast(jugador: str, motivo: str | None, pool: list[str] = FRASES) -> str:
+    frase = random.choice(pool).format(jugador=jugador)
     if motivo:
         frase += f" (según cuentan, por: _{motivo}_)"
     return frase
@@ -135,10 +155,20 @@ class Cagarse(commands.Cog):
             for miembro in war.clan.members:
                 for ataque in miembro.attacks:
                     rival = ataque.defender
-                    if not rival or rival.town_hall > miembro.town_hall:
-                        continue  # atacar hacia arriba y sacar poco es normal, no es cagada
-                    if ataque.stars > 1:
+                    if not rival:
                         continue
+
+                    if rival.town_hall < miembro.town_hall and ataque.stars < 3:
+                        # Atacar hacia abajo y no sacar pleno no tiene excusa
+                        # de dificultad -- tono aparte, mas exigente.
+                        pool = FRASES_INFERIOR
+                    elif rival.town_hall <= miembro.town_hall and ataque.stars <= 1:
+                        # Parejo o hacia abajo y 0-1 estrella: cagada comun.
+                        pool = FRASES
+                    else:
+                        # Hacia arriba (o parejo con 2+, que ya no es cagada).
+                        continue
+
                     if storage.cagada_avisada(self.db, war.start_time.raw_time, war.opponent.tag, ataque.order):
                         continue
                     storage.marcar_cagada_avisada(self.db, war.start_time.raw_time, war.opponent.tag, ataque.order)
@@ -151,7 +181,7 @@ class Cagarse(commands.Cog):
                         jugador = miembro.name
                     motivo = f"{ataque.stars}⭐/{ataque.destruction:.0f}% vs TH{rival.town_hall} ({rival.name})"
 
-                    texto = whatsapp.formatear_para_whatsapp(_armar_roast(jugador, motivo))
+                    texto = whatsapp.formatear_para_whatsapp(_armar_roast(jugador, motivo, pool))
                     await whatsapp.esperar_jitter(30)
                     ok, detalle = await whatsapp.enviar(texto, mentions=jids)
                     if not ok:
