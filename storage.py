@@ -77,6 +77,11 @@ CREATE TABLE IF NOT EXISTS avisos_inicio_guerra (
 CREATE TABLE IF NOT EXISTS avisos_temporada_cerrada (
     temporada TEXT PRIMARY KEY
 );
+
+CREATE TABLE IF NOT EXISTS recordatorios_automaticos (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    ultimo_envio TEXT NOT NULL
+);
 """
 
 
@@ -472,6 +477,24 @@ def temporada_cierre_avisado(con, temporada: str) -> bool:
 
 def marcar_temporada_cierre_avisado(con, temporada: str):
     con.execute("INSERT OR IGNORE INTO avisos_temporada_cerrada (temporada) VALUES (?)", (temporada,))
+    con.commit()
+
+
+def ultimo_recordatorio_automatico(con) -> str | None:
+    """ISO datetime del ultimo envio real de recordatorio_automatico, o None
+    si nunca se mando ninguno. Sirve para no repetirlo si el bot reinicia
+    (tasks.loop dispara una vez apenas arranca) antes de que pasen las 4h."""
+    fila = con.execute("SELECT ultimo_envio FROM recordatorios_automaticos WHERE id = 1").fetchone()
+    return fila[0] if fila else None
+
+
+def marcar_recordatorio_automatico_enviado(con):
+    ahora = datetime.now(timezone.utc).isoformat()
+    con.execute(
+        "INSERT INTO recordatorios_automaticos (id, ultimo_envio) VALUES (1, ?) "
+        "ON CONFLICT(id) DO UPDATE SET ultimo_envio = excluded.ultimo_envio",
+        (ahora,),
+    )
     con.commit()
 
 

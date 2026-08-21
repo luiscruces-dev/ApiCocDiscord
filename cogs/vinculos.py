@@ -24,6 +24,7 @@ Los dos son silenciosos el resto del tiempo (no avisan "no hay guerra"
 seguido, eso solo lo dice /recordar cuando alguien lo pide a mano).
 """
 import logging
+from datetime import datetime, timedelta, timezone
 
 import coc
 from discord.ext import commands, tasks
@@ -226,11 +227,25 @@ class Vinculos(commands.Cog):
             if estado != "ok" or not faltan:
                 return
 
+            # tasks.loop dispara una vez apenas arranca (osea, en cada
+            # reinicio/deploy del bot) ademas de cada 4h. Sin este chequeo,
+            # reiniciar el bot durante una guerra activa manda un
+            # recordatorio de mas cada vez -- por eso se guarda el ultimo
+            # envio real y se exige un margen (un poco menos de 4h, por si
+            # el tick natural cae un ratito antes) antes de repetir.
+            ultimo = storage.ultimo_recordatorio_automatico(self.db)
+            if ultimo:
+                desde_ultimo = datetime.now(timezone.utc) - datetime.fromisoformat(ultimo)
+                if desde_ultimo < timedelta(hours=3, minutes=30):
+                    return
+
             lineas, menciones = self._armar_recordatorio(guerra, faltan)
             texto = whatsapp.formatear_para_whatsapp("\n".join(lineas))
             await whatsapp.esperar_jitter(180)
             ok, detalle = await whatsapp.enviar(texto, mentions=menciones)
-            if not ok:
+            if ok:
+                storage.marcar_recordatorio_automatico_enviado(self.db)
+            else:
                 logging.getLogger("apicocdiscord").warning("recordatorio_automatico: no se pudo enviar (%s)", detalle)
         except Exception:
             logging.getLogger("apicocdiscord").exception("recordatorio_automatico: error inesperado, reintento en 4h")
