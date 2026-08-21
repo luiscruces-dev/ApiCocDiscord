@@ -60,14 +60,28 @@ function extraerTexto(msg) {
   return contenido?.conversation || contenido?.extendedTextMessage?.text || null;
 }
 
-// Si el mensaje es una respuesta (citando/"deslizando sobre" otro mensaje),
-// devuelve el JID de quien escribio el mensaje citado -- tal cual, sin
-// reconstruirlo, mismo criterio que las menciones de /recordar. Sirve para
-// comandos como /cagarse que quieren apuntar a "la persona que cite" en vez
-// de que el remitente tenga que escribir su nombre a mano.
+// Hay dos formas de "apuntar" a alguien en WhatsApp sin escribir su nombre:
+// citando/respondiendo su mensaje (contextInfo.participant), o escribiendo
+// "@" y eligiendolo del propio texto (contextInfo.mentionedJid). Se prioriza
+// la cita si hay las dos, pero cualquiera de las dos sirve -- el JID va tal
+// cual, sin reconstruirlo, mismo criterio que las menciones de /recordar.
 function extraerCitado(msg) {
-  const contenido = contenidoReal(msg);
-  return contenido?.extendedTextMessage?.contextInfo?.participant || null;
+  const contextInfo = contenidoReal(msg)?.extendedTextMessage?.contextInfo;
+  return contextInfo?.participant || contextInfo?.mentionedJid?.[0] || null;
+}
+
+// Cuando mencionan a alguien escribiendo "@" en el texto (en vez de citar su
+// mensaje), WhatsApp deja el numero/lid crudo como texto plano (ej.
+// "@67126429765773"). Una vez identificada esa persona via extraerCitado, ese
+// pedazo de texto sobra en los argumentos del comando -- se lo quita para que
+// no termine metido en el motivo.
+function limpiarMenciones(texto, msg) {
+  const mentionedJids = contenidoReal(msg)?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+  let limpio = texto;
+  for (const jid of mentionedJids) {
+    limpio = limpio.replace(new RegExp(`@${jid.split("@")[0]}\\b`, "g"), "");
+  }
+  return limpio.trim();
 }
 
 function dormir(ms) {
@@ -119,7 +133,7 @@ async function manejarMensajeEntrante(msg) {
   const partes = texto.slice(1).trim().split(/\s+/);
   const nombre = (partes.shift() || "").toLowerCase();
   if (!nombre) return;
-  const argumentos = partes.join(" ");
+  const argumentos = limpiarMenciones(partes.join(" "), msg);
 
   // Un remitente no puede disparar mas de un comando cada COMANDO_COOLDOWN_MS,
   // para que nadie inunde el grupo insistiendo con el mismo comando.
