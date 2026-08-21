@@ -3,14 +3,26 @@ Comando de relajo para el clan: le tira un roast en venezolano a quien se
 mando una cagada atacando en guerra (o donde sea). Es puro chiste entre
 panas, no hay logica de Clash detras -- solo elige una frase al azar y la
 rellena con el nombre/mencion de la victima.
+
+Ademas de a pedido (/cagarse), un loop de fondo (revisar_ataques) detecta
+solo las cagadas de verdad durante una guerra activa: un ataque que saco 0 o
+1 estrella contra un rival del mismo TH o mas bajo (atacar hacia arriba y
+sacar poco ahi si es normal, no cuenta) dispara un roast automatico al grupo
+de WhatsApp -- igual que el resto de avisos automaticos del clan, nunca a
+Discord. Cada ataque se identifica por su "order" (unico dentro de la
+guerra), asi que no se repite en cada poll aunque el ataque siga en la lista.
 """
+import logging
 import random
 
+import coc
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 
+import config
 import storage
+import whatsapp
 
 FRASES = [
     "¡{jugador}, se te fue el ataque más arrecho que un mono con tenis! 🐒👟",
@@ -29,6 +41,23 @@ FRASES = [
     "Se cagó todo, {jugador}. Guardaste el ataque pa'l final y lo usaste pa' regalar loot. ¡Aplauso de cotorra! 👏",
     "{jugador}, en tu próxima vida pide nacer con mejor puntería, porque en esta ya se te fue el chance.",
     "¡Qué vaina más arrecha, {jugador}! Esa base se rió de ti en 4K.",
+    "¿Y esa táctica, {jugador}? Porque yo vi puro Barbarian corriendo como pollo sin cabeza.",
+    "{jugador}, gastaste el CV en tropas y terminaste regalando trofeos como Santa Claus. ¡Ho ho ho, qué oso!",
+    "Esa base te agarró de payaso, {jugador}. Ni el Grand Warden se salvó de la vergüenza.",
+    "{jugador}, atacaste con más nervios que examinado sin estudiar. Se te olvidó hasta el hechizo de rabia.",
+    "¡Mano {jugador}, esa fue una masacre... pero de tu propio ejército! El enemigo ni sudó.",
+    "{jugador}, tú no perdiste el ataque, tú lo regalaste envuelto pa' regalo con moñito y todo. 🎀",
+    "Esa base quedó más intacta que la virginidad de un monje, {jugador}. ¡Qué fiasco!",
+    "{jugador}, si el ataque fuera examen, reprobaste hasta la firma.",
+    "¡Epa {jugador}! Con esa puntería deberías dedicarte a lanzar cotufas al zafacón y ver si por lo menos ahí atinas.",
+    "{jugador}, tú no atacaste, tú fuiste de visita turística a ver la base y te devolviste.",
+    "Ese ataque estuvo tan malo, {jugador}, que hasta el clan enemigo te dio like.",
+    "{jugador}, dejaste el CV botado como carro varado en la Cota Mil.",
+    "¡Qué show, {jugador}! Le hiciste más daño a tu autoestima que a la base.",
+    "{jugador}, ¿tú compraste la Pase de Temporada pa' esto? Ni pa'l saldo del teléfono te alcanzó ese ataque.",
+    "Esa base te vio llegar y dijo 'tranquila, este no rompe ni un huevo', {jugador}.",
+    "{jugador}, mejor dedícate a donar tropas, porque atacando eres un peligro público.",
+    "¡Ay {jugador}! Esa fue floja hasta pa'l TH9 de tu abuela.",
 ]
 
 
@@ -44,9 +73,15 @@ class Cagarse(commands.Cog):
         self.bot = bot
         self.db = storage.conectar()
         bot.comandos_wa["cagarse"] = self._lineas_cagarse
+        self.revisar_ataques.start()
 
     def cog_unload(self):
+        self.revisar_ataques.cancel()
         self.db.close()
+
+    @property
+    def coc_client(self) -> coc.Client:
+        return self.bot.coc_client
 
     async def _lineas_cagarse(
         self, argumentos: str = "", remitente: str = "", citado: str = ""
@@ -84,6 +119,51 @@ class Cagarse(commands.Cog):
     @app_commands.describe(victima="A quién le vamos a cagar la base", motivo="Opcional: qué fue lo que hizo")
     async def cagarse(self, interaction: discord.Interaction, victima: discord.Member, motivo: str = None):
         await interaction.response.send_message(_armar_roast(victima.mention, motivo))
+
+    @tasks.loop(minutes=10)
+    async def revisar_ataques(self):
+        # Mismo espiritu que revisar_guerra/aviso_inicio_guerra: este loop
+        # tiene que sobrevivir meses corriendo solo, cualquier error se
+        # ignora y se reintenta en el proximo ciclo, nunca se cae.
+        if not whatsapp.configurado():
+            return
+        try:
+            war = await self.coc_client.get_current_war(config.CLAN_TAG)
+            if not war or war.state != "inWar":
+                return
+
+            for miembro in war.clan.members:
+                for ataque in miembro.attacks:
+                    rival = ataque.defender
+                    if not rival or rival.town_hall > miembro.town_hall:
+                        continue  # atacar hacia arriba y sacar poco es normal, no es cagada
+                    if ataque.stars > 1:
+                        continue
+                    if storage.cagada_avisada(self.db, war.start_time.raw_time, war.opponent.tag, ataque.order):
+                        continue
+                    storage.marcar_cagada_avisada(self.db, war.start_time.raw_time, war.opponent.tag, ataque.order)
+
+                    jids = storage.jids_de_tag(self.db, miembro.tag)
+                    if jids:
+                        mencion = " ".join(f"@{jid.split('@')[0]}" for jid in jids)
+                        jugador = f"{mencion} ({miembro.name})"
+                    else:
+                        jugador = miembro.name
+                    motivo = f"{ataque.stars}⭐/{ataque.destruction:.0f}% vs TH{rival.town_hall} ({rival.name})"
+
+                    texto = whatsapp.formatear_para_whatsapp(_armar_roast(jugador, motivo))
+                    await whatsapp.esperar_jitter(30)
+                    ok, detalle = await whatsapp.enviar(texto, mentions=jids)
+                    if not ok:
+                        logging.getLogger("apicocdiscord").warning("revisar_ataques: no se pudo enviar (%s)", detalle)
+        except coc.HTTPException as e:
+            logging.getLogger("apicocdiscord").warning("revisar_ataques: error de la API, reintento en 10 min (%s)", e)
+        except Exception:
+            logging.getLogger("apicocdiscord").exception("revisar_ataques: error inesperado, reintento en 10 min")
+
+    @revisar_ataques.before_loop
+    async def antes_de_revisar_ataques(self):
+        await self.bot.wait_until_ready()
 
 
 async def setup(bot: commands.Bot):

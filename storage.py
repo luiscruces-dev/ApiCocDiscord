@@ -82,6 +82,13 @@ CREATE TABLE IF NOT EXISTS recordatorios_automaticos (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     ultimo_envio TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS cagadas_avisadas (
+    start_time TEXT NOT NULL,
+    opponent_tag TEXT,
+    attack_order INTEGER NOT NULL,
+    UNIQUE(start_time, opponent_tag, attack_order)
+);
 """
 
 
@@ -450,6 +457,22 @@ def tags_de_jid(con, wa_jid: str) -> list[tuple[str, str]]:
     return con.execute(
         "SELECT player_tag, player_name FROM vinculos_wa WHERE wa_jid = ? ORDER BY player_name", (wa_jid,)
     ).fetchall()
+
+
+def cagada_avisada(con, start_time: str, opponent_tag: str, attack_order: int) -> bool:
+    fila = con.execute(
+        "SELECT 1 FROM cagadas_avisadas WHERE start_time = ? AND opponent_tag = ? AND attack_order = ?",
+        (start_time, opponent_tag, attack_order),
+    ).fetchone()
+    return fila is not None
+
+
+def marcar_cagada_avisada(con, start_time: str, opponent_tag: str, attack_order: int):
+    con.execute(
+        "INSERT OR IGNORE INTO cagadas_avisadas (start_time, opponent_tag, attack_order) VALUES (?, ?, ?)",
+        (start_time, opponent_tag, attack_order),
+    )
+    con.commit()
 
 
 def guerra_inicio_avisado(con, start_time: str, opponent_tag: str) -> bool:
