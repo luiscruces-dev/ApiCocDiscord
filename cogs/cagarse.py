@@ -5,16 +5,20 @@ panas, no hay logica de Clash detras -- solo elige una frase al azar y la
 rellena con el nombre/mencion de la victima.
 
 Ademas de a pedido (/cagarse), un loop de fondo (revisar_ataques) detecta
-solo las cagadas de verdad durante una guerra activa y dispara un roast
-automatico al grupo de WhatsApp -- igual que el resto de avisos automaticos
-del clan, nunca a Discord. Dos casos, con tono distinto cada uno:
+ataques destacados (para bien o para mal) durante una guerra activa y manda
+un mensaje automatico al grupo de WhatsApp -- igual que el resto de avisos
+automaticos del clan, nunca a Discord. Tres casos, cada uno con su tono:
+- Ataca hacia arriba (rival de TH mas alto) y saca 2+ estrellas: mérito real
+  -- FRASES_ELOGIO ("bien ataque, compai").
 - Ataca hacia abajo (rival de TH mas bajo) y no saca el pleno (3 estrellas):
   no hay excusa, el TH estaba a favor -- FRASES_INFERIOR ("tratame en serio").
 - Ataca parejo o hacia arriba y saca 0 o 1 estrella: cagada normal, ahi si
   hay margen -- FRASES de siempre.
-Atacar hacia arriba y sacar poco nunca cuenta (es lo esperable). Cada ataque
-se identifica por su "order" (unico dentro de la guerra), asi que no se
-repite en cada poll aunque el ataque siga en la lista.
+Atacar hacia arriba y sacar 0-1 estrella no dispara nada -- es lo esperable,
+ni roast ni elogio. Cada ataque se identifica por su "order" (unico dentro
+de la guerra), asi que no se repite en cada poll aunque el ataque siga en la
+lista -- la misma tabla sirve tanto para roasts como para elogios, solo
+importa que ya se avise una vez.
 """
 import logging
 import random
@@ -78,6 +82,21 @@ FRASES_INFERIOR = [
     "{jugador}, con ese TH de ventaja hasta mi abuela saca pleno. Trátame en serio.",
     "¡Ni jugando en fácil, {jugador}! Bajaste a un TH menor y ni así completaste el ataque.",
     "{jugador}, eso fue tirar el examen fácil a la basura. Un TH más bajo y no sacaste el pleno... ¡vergonzoso!",
+]
+
+# Caso contrario: atacar a un TH mas alto y sacar 2 o 3 estrellas. Ahi si hay
+# merito real, tono de elogio en vez de roast.
+FRASES_ELOGIO = [
+    "¡Bien ataque, compai {jugador}! Le rompiste el rancho a un TH más alto que el tuyo.",
+    "¡Eso sí es tener pantalones, {jugador}! Atacaste pa'rriba y te la comiste completa.",
+    "¡Qué maquinaria, {jugador}! Ese TH más alto ni se la vio venir.",
+    "¡Sepa, {jugador}! Le diste durísimo a un TH por encima tuyo, así se juega.",
+    "{jugador}, ese sí es un pana que ataca con hambre. TH más alto y lo dejaste temblando.",
+    "¡Fino ese ataque, {jugador}! Subiste de TH y aun así rompiste todo.",
+    "¡Eso es nivel, {jugador}! Le ganaste a un TH más grande sin despeinarte.",
+    "¡Qué nivel, {jugador}! Esa sí fue una machetiada limpia a un TH más alto.",
+    "¡Show completo, compai {jugador}! Ese TH de arriba no le alcanzó pa' pararte.",
+    "¡Ese es mi pana, {jugador}! Subiendo de TH y sacando estrellas como si nada.",
 ]
 
 
@@ -158,7 +177,11 @@ class Cagarse(commands.Cog):
                     if not rival:
                         continue
 
-                    if rival.town_hall < miembro.town_hall and ataque.stars < 3:
+                    if rival.town_hall > miembro.town_hall and ataque.stars >= 2:
+                        # Atacar hacia arriba y sacar 2-3 estrellas es merito
+                        # real -- elogio, no roast.
+                        pool = FRASES_ELOGIO
+                    elif rival.town_hall < miembro.town_hall and ataque.stars < 3:
                         # Atacar hacia abajo y no sacar pleno no tiene excusa
                         # de dificultad -- tono aparte, mas exigente.
                         pool = FRASES_INFERIOR
@@ -166,7 +189,8 @@ class Cagarse(commands.Cog):
                         # Parejo o hacia abajo y 0-1 estrella: cagada comun.
                         pool = FRASES
                     else:
-                        # Hacia arriba (o parejo con 2+, que ya no es cagada).
+                        # Hacia arriba con 0-1 estrella (esperable) o parejo
+                        # con 2+ (tampoco es cagada): no dispara nada.
                         continue
 
                     if storage.cagada_avisada(self.db, war.start_time.raw_time, war.opponent.tag, ataque.order):

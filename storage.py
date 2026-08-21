@@ -83,6 +83,9 @@ CREATE TABLE IF NOT EXISTS recordatorios_automaticos (
     ultimo_envio TEXT NOT NULL
 );
 
+-- El nombre quedo de cuando /cagarse solo hacia roasts, pero tambien trackea
+-- los ataques que dispararon un elogio (FRASES_ELOGIO en cagarse.py) -- en
+-- los dos casos, el punto es no volver a avisar el mismo ataque.
 CREATE TABLE IF NOT EXISTS cagadas_avisadas (
     start_time TEXT NOT NULL,
     opponent_tag TEXT,
