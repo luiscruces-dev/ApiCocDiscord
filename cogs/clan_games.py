@@ -132,7 +132,10 @@ class ClanGames(commands.Cog):
         resultados = []
         for tag, nombre, puntos_ahora in foto_actual:
             puntos_inicio = inicio.get(tag)
-            puntos = None if puntos_inicio is None else puntos_ahora - puntos_inicio
+            if puntos_inicio is None:
+                puntos = None
+            else:
+                puntos = min(puntos_ahora - puntos_inicio, storage.PUNTOS_MAXIMOS_CLAN_GAMES)
             resultados.append((nombre, puntos))
         resultados.sort(key=lambda r: (r[1] is None, -(r[1] or 0)))
 

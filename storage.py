@@ -332,6 +332,12 @@ def puntos_inicio_clan_games(con, sesion_id: int) -> dict[str, int]:
     )
 
 
+# Tope real de puntos individuales por edicion de Clan Games en el juego
+# actual -- si Supercell agrega mas tiers en el futuro y esto queda corto,
+# hay que subirlo aca.
+PUNTOS_MAXIMOS_CLAN_GAMES = 10000
+
+
 def resultado_clan_games(con, sesion_id: int):
     inicio = {
         tag: puntos
@@ -348,7 +354,13 @@ def resultado_clan_games(con, sesion_id: int):
     resultados = []
     for tag, nombre, puntos_cierre in cierre:
         if tag in inicio:
-            resultados.append((tag, nombre, puntos_cierre - inicio[tag]))
+            # El achievement es acumulado de toda la vida, no exclusivo de
+            # esta edicion -- si alguien ya venia con puntos sin cerrar de
+            # una edicion anterior (sesion vieja nunca cerrada, por ejemplo),
+            # la resta cruda puede pasarse del tope real del juego. Se topea
+            # aca en vez de confiar en la resta a lo bruto.
+            puntos = min(puntos_cierre - inicio[tag], PUNTOS_MAXIMOS_CLAN_GAMES)
+            resultados.append((tag, nombre, puntos))
         else:
             # se unio al clan a mitad del evento, no le alcanzamos a sacar la foto de inicio
             resultados.append((tag, nombre, None))
