@@ -83,7 +83,9 @@ class ClanStats(commands.Cog):
         await interaction.response.defer()
         await enviar_en_paginas(interaction, await self._lineas_donaciones())
 
-    async def _lineas_capital(self, argumentos: str = "", remitente: str = "") -> list[str]:
+    async def _lineas_capital(
+        self, argumentos: str = "", remitente: str = ""
+    ) -> list[str] | tuple[list[str], list[str]]:
         raid_log = await self.coc_client.get_raid_log(config.CLAN_TAG, limit=1)
         entradas = list(raid_log)
         if not entradas:
@@ -102,12 +104,55 @@ class ClanStats(commands.Cog):
                 f"`{i:>2}.` **{m.name}** — {m.capital_resources_looted} oro "
                 f"({m.attack_count}/{limite_ataques} ataques)"
             )
-        return lineas
+
+        if temporada.state != "ongoing":
+            return lineas
+
+        # Mientras el Raid Weekend siga abierto, se avisa quien le falta
+        # atacar -- el registro de la API solo trae a quien ya ataco al
+        # menos una vez, asi que hay que cruzar con la lista completa del
+        # clan para pescar tambien a quien todavia no ataco nada.
+        try:
+            clan = await self.coc_client.get_clan(config.CLAN_TAG)
+        except coc.HTTPException:
+            return lineas
+
+        raid_por_tag = {m.tag: m for m in temporada.members}
+        jids = storage.jids_por_tag(self.db)
+        menciones = []
+        faltan = []
+        for miembro in clan.members:
+            raid_miembro = raid_por_tag.get(miembro.tag)
+            if raid_miembro is None:
+                faltan.append((miembro.tag, miembro.name, "no ha atacado todavía"))
+                continue
+            limite = raid_miembro.attack_limit + raid_miembro.bonus_attack_limit
+            if raid_miembro.attack_count < limite:
+                faltan.append((miembro.tag, miembro.name, f"{raid_miembro.attack_count}/{limite} ataques"))
+
+        if not faltan:
+            return lineas
+
+        lineas.append("")
+        lineas.append("⚠️ **Muchachos, todavía les faltan ataques de Capital, no lo olviden:**")
+        for tag, nombre, detalle in sorted(faltan, key=lambda f: f[1].lower()):
+            jids_cuenta = jids.get(tag, [])
+            if jids_cuenta:
+                mencion = " ".join(f"@{jid.split('@')[0]}" for jid in jids_cuenta)
+                quien = f"{mencion} ({nombre})"
+                menciones.extend(jids_cuenta)
+            else:
+                quien = nombre
+            lineas.append(f"- {quien} — {detalle}")
+
+        return lineas, menciones
 
     @app_commands.command(name="capital", description="Ranking de saqueo de oro de capital del último Raid Weekend")
     async def capital(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        await enviar_en_paginas(interaction, await self._lineas_capital())
+        resultado = await self._lineas_capital()
+        lineas = resultado[0] if isinstance(resultado, tuple) else resultado
+        await enviar_en_paginas(interaction, lineas)
 
     async def _lineas_guerra(self, argumentos: str = "", remitente: str = "") -> list[str]:
         guerra_actual, mensaje = await obtener_guerra_o_mensaje(self.coc_client, "Guerra vs")

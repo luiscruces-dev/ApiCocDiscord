@@ -13,7 +13,7 @@ WhatsApp configurado (ver "Puente a WhatsApp" más abajo).
 
 - `/miembros` 📱 — lista de todo el clan: rol, TH, trofeos, donaciones dadas/recibidas.
 - `/donaciones` 📱 — ranking de donaciones (dadas, recibidas y ratio).
-- `/capital` 📱 — ranking de oro saqueado en el último Raid Weekend.
+- `/capital` 📱 — ranking de oro saqueado en el último Raid Weekend. Si el Raid Weekend sigue abierto, agrega un recordatorio al final con quién todavía le faltan ataques de Capital (incluye a quien no ha atacado nada, que la API ni siquiera lista); en WhatsApp etiqueta de verdad a quien esté vinculado con `/vincular`, igual que `/recordar`.
 - `/guerra` 📱 — estado de la guerra actual, ataques usados, estrellas y % de destrucción por miembro.
 - `/rival` 📱 — lo mismo pero del lado del rival: bases enemigas (TH, ataques recibidos, estrellas, % destrucción) con su "espejo" del propio clan (mismo `map_position`), más un balance de cuántos TH tiene cada bando.
 - `/estimacion` 📱 — proyección de estrellas de la guerra actual: los ataques ya hechos cuentan real, los pendientes se estiman contra el espejo según el historial del clan por diferencia de TH (primero el del propio jugador si tiene suficiente muestra, si no el del clan entero). Sin historial a esa diferencia, lo dice en vez de inventar un número — con pocas guerras guardadas todavía, la estimación va a ser floja.
