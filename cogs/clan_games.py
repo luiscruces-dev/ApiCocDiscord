@@ -48,6 +48,7 @@ class ClanGames(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.db = storage.conectar()
+        bot.comandos_wa["clangames"] = self._lineas_progreso
         self.revisar_clan_games.start()
 
     def cog_unload(self):
@@ -109,6 +110,41 @@ class ClanGames(commands.Cog):
         lineas = self._lineas_resultado(resultados)
         await enviar_en_paginas(interaction, lineas)
 
+    async def progreso(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        await enviar_en_paginas(interaction, await self._lineas_progreso())
+
+    async def _lineas_progreso(self, argumentos: str = "", remitente: str = "") -> list[str]:
+        # A diferencia de /clangames cerrar, esto NO cierra la medicion ni
+        # guarda un snapshot nuevo -- solo compara la foto de ahora mismo
+        # contra el punto de partida guardado en /clangames iniciar, para
+        # ver como van sin terminar el evento.
+        sesion_id = storage.sesion_clan_games_abierta(self.db)
+        if not sesion_id:
+            return [
+                "No hay una medición de Clan Games abierta ahora mismo "
+                f"(corre normalmente del {DIA_INICIO_CLAN_GAMES} al {DIA_CIERRE_CLAN_GAMES} de cada mes)."
+            ]
+
+        inicio = storage.puntos_inicio_clan_games(self.db, sesion_id)
+        foto_actual = await self.foto_de_todos()
+
+        resultados = []
+        for tag, nombre, puntos_ahora in foto_actual:
+            puntos_inicio = inicio.get(tag)
+            puntos = None if puntos_inicio is None else puntos_ahora - puntos_inicio
+            resultados.append((nombre, puntos))
+        resultados.sort(key=lambda r: (r[1] is None, -(r[1] or 0)))
+
+        total = sum(puntos for _nombre, puntos in resultados if puntos is not None)
+        lineas = [f"**Progreso de Clan Games (en vivo)** — {total} pts acumulados hasta ahora\n"]
+        for nombre, puntos in resultados:
+            if puntos is None:
+                lineas.append(f"**{nombre}** — se unió a mitad del evento, no hay punto de partida para comparar")
+            else:
+                lineas.append(f"**{nombre}** — {puntos} pts")
+        return lineas
+
     def _lineas_resultado(self, resultados) -> list[str]:
         lineas = ["**Resultado de Clan Games**\n"]
         for _tag, nombre, puntos in resultados:
@@ -167,6 +203,10 @@ class ClanGamesGroup(app_commands.Group):
     @app_commands.command(name="cerrar", description="Cierra la medición y muestra cuánto aportó cada quien")
     async def cerrar(self, interaction: discord.Interaction):
         await self.cog.cerrar(interaction)
+
+    @app_commands.command(name="progreso", description="Progreso en vivo de Clan Games desde que arrancó la medición")
+    async def progreso(self, interaction: discord.Interaction):
+        await self.cog.progreso(interaction)
 
 
 async def setup(bot: commands.Bot):

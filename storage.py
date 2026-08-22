@@ -320,6 +320,18 @@ def guardar_snapshot_clan_games(con, sesion_id: int, momento: str, jugadores):
     con.commit()
 
 
+def puntos_inicio_clan_games(con, sesion_id: int) -> dict[str, int]:
+    """player_tag -> puntos del snapshot de inicio de esa sesion (sin
+    necesitar que ya haya un snapshot de cierre -- sirve para ver el
+    progreso en vivo mientras el evento sigue corriendo)."""
+    return dict(
+        con.execute(
+            "SELECT player_tag, puntos FROM clan_games_snapshots WHERE sesion_id = ? AND momento = 'inicio'",
+            (sesion_id,),
+        ).fetchall()
+    )
+
+
 def resultado_clan_games(con, sesion_id: int):
     inicio = {
         tag: puntos
