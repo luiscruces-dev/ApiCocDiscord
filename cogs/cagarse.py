@@ -82,6 +82,12 @@ FRASES_INFERIOR = [
     "{jugador}, con ese TH de ventaja hasta mi abuela saca pleno. Trátame en serio.",
     "¡Ni jugando en fácil, {jugador}! Bajaste a un TH menor y ni así completaste el ataque.",
     "{jugador}, eso fue tirar el examen fácil a la basura. Un TH más bajo y no sacaste el pleno... ¡vergonzoso!",
+    "¡Agárrense que ahí viene Jeho! {jugador}, con esa ventaja de TH y sin pleno, te va a sacar del clan por flojo.",
+    "{jugador}, eso que hiciste es currículum pa' que Jeho te saque del clan. Un TH más bajo y ni el pleno sacaste.",
+    "{jugador}, con esa vagancia contra un TH más bajo, Jeho ya está afilando el botón de kickear.",
+    "{jugador}, eso no se hace ni de vaina. Si Jeho se entera de ese TH más bajo sin pleno, te vas del clan de una vez.",
+    "Epa Jeho, ¿viste esa cagada de ataque de {jugador}? A ese hay que darle como cuello.",
+    "Jeho, fíjate lo que hizo {jugador}: TH más bajo y ni el pleno sacó. A ese sí hay que darle cuello, sin lástima.",
 ]
 
 # Caso contrario: atacar a un TH mas alto y sacar 2 o 3 estrellas. Ahi si hay
