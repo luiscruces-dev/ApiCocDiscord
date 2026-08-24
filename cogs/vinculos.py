@@ -14,16 +14,19 @@ excepcion acá porque vincularse no afecta al clan en nada — en el peor caso
 alguien se vincula con el tag equivocado, y se corrige mandando /vincular
 de nuevo o /desvincular.
 
-Ademas de /recordar (a pedido, en el grupo), dos loops de fondo avisan
+Ademas de /recordar (a pedido, en el grupo), tres loops de fondo avisan
 solos por WhatsApp:
+- aviso_pre_guerra (cada 10 min) manda un chiste avisando que la guerra
+  arranca en <=30 min, mientras siga en dia de preparacion.
 - aviso_inicio_guerra (cada 10 min) manda un aviso especial UNA vez apenas
   arranca cada guerra ("hemos iniciado guerra").
 - recordatorio_automatico (cada 4h) manda el recordatorio normal mientras
   la guerra siga activa y falte alguien por atacar.
-Los dos son silenciosos el resto del tiempo (no avisan "no hay guerra"
+Los tres son silenciosos el resto del tiempo (no avisan "no hay guerra"
 seguido, eso solo lo dice /recordar cuando alguien lo pide a mano).
 """
 import logging
+import random
 from datetime import datetime, timedelta, timezone
 
 import coc
@@ -34,6 +37,23 @@ import storage
 import whatsapp
 from utils import tiempo_legible
 
+MINUTOS_AVISO_PRE_GUERRA = 30
+
+FRASES_PRE_GUERRA = [
+    "¡Preparen esas nalgas, mi gente! La guerra contra **{rival}** arranca en {tiempo}.",
+    "Alerta clan: en {tiempo} empieza la guerra vs **{rival}**. Guarden el celular y saquen las tropas.",
+    "¡Se acabó el relajo! Guerra contra **{rival}** en {tiempo} — quien no esté listo que se vaya despidiendo del pleno.",
+    "En {tiempo} arranca la guerra vs **{rival}**. Revisen su ejército, que después no digan que no avisé.",
+    "¡Prepárense panas! {tiempo} para que empiece la guerra contra **{rival}**, no me dejen a nadie durmiendo.",
+    "Faltan {tiempo} pa' la guerra vs **{rival}**. El que no tenga hechizos listos, que vaya corriendo.",
+    "¡Se respira guerra! En {tiempo} arrancamos contra **{rival}**, ánimo y a dar cátedra.",
+    "{tiempo} y contando pa' la guerra vs **{rival}**. Ojalá tengan el CV lleno, no vayan a salir con excusas después.",
+    "Última llamada: guerra contra **{rival}** en {tiempo}. Preparen tropas, hechizos y las nalgas.",
+    "¡Aquí no se juega, mi gente! {tiempo} pa' la guerra vs **{rival}**, el que no ataque bien ya sabe lo que le espera.",
+    "En {tiempo} se prende la guerra contra **{rival}**. Bájense el nervio y suban el ejército.",
+    "¡Sepan que viene guerra! {tiempo} contra **{rival}** — a calentar motores, que después no hay excusa.",
+]
+
 
 class Vinculos(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -42,10 +62,12 @@ class Vinculos(commands.Cog):
         bot.comandos_wa["vincular"] = self._vincular
         bot.comandos_wa["desvincular"] = self._desvincular
         bot.comandos_wa["recordar"] = self._recordar
+        self.aviso_pre_guerra.start()
         self.aviso_inicio_guerra.start()
         self.recordatorio_automatico.start()
 
     def cog_unload(self):
+        self.aviso_pre_guerra.cancel()
         self.aviso_inicio_guerra.cancel()
         self.recordatorio_automatico.cancel()
         self.db.close()
@@ -175,6 +197,43 @@ class Vinculos(commands.Cog):
         if not faltan:
             return [f"Ya atacaron todos contra **{guerra.opponent.name}**, no falta nadie."], []
         return self._armar_recordatorio(guerra, faltan)
+
+    @tasks.loop(minutes=10)
+    async def aviso_pre_guerra(self):
+        # Mismo espiritu que aviso_inicio_guerra: chequeo cada 10 min, se
+        # guarda en avisos_pre_guerra para no repetirlo si el bot reinicia
+        # a mitad de la ventana de 30 min ya avisada.
+        if not whatsapp.configurado():
+            return
+        try:
+            estado, guerra, _faltan = await self._estado_guerra_faltan()
+            if estado != "preparacion":
+                return
+
+            segundos = guerra.start_time.seconds_until
+            if segundos > MINUTOS_AVISO_PRE_GUERRA * 60:
+                return
+
+            start_time = guerra.start_time.raw_time
+            opponent_tag = guerra.opponent.tag
+            if storage.guerra_pre_avisada(self.db, start_time, opponent_tag):
+                return
+            storage.marcar_guerra_pre_avisada(self.db, start_time, opponent_tag)
+
+            frase = random.choice(FRASES_PRE_GUERRA).format(
+                rival=guerra.opponent.name, tiempo=tiempo_legible(segundos)
+            )
+            texto = whatsapp.formatear_para_whatsapp(frase)
+            await whatsapp.esperar_jitter(30)
+            ok, detalle = await whatsapp.enviar(texto)
+            if not ok:
+                logging.getLogger("apicocdiscord").warning("aviso_pre_guerra: no se pudo enviar (%s)", detalle)
+        except Exception:
+            logging.getLogger("apicocdiscord").exception("aviso_pre_guerra: error inesperado, reintento en 10 min")
+
+    @aviso_pre_guerra.before_loop
+    async def antes_de_avisar_pre_guerra(self):
+        await self.bot.wait_until_ready()
 
     @tasks.loop(minutes=10)
     async def aviso_inicio_guerra(self):
