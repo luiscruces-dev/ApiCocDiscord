@@ -133,7 +133,8 @@ class Vinculos(commands.Cog):
         jids = storage.jids_por_tag(self.db)
         tiempo = tiempo_legible(guerra.end_time.seconds_until)
         encabezado = encabezado or f"Muchachos, recuerden atacar en guerra contra **{guerra.opponent.name}**"
-        lineas = [f"{encabezado}, tienen {tiempo}:\n"]
+        marcador = f"Vamos {guerra.clan.stars}⭐ vs {guerra.opponent.stars}⭐ del rival"
+        lineas = [f"{encabezado}, tienen {tiempo}:", marcador, ""]
         menciones = []
         for m in sorted(faltan, key=lambda m: m.map_position):
             usados = len(m.attacks)

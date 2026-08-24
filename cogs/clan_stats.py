@@ -161,7 +161,8 @@ class ClanStats(commands.Cog):
 
         lineas = [
             f"**Guerra vs {guerra_actual.opponent.name}** — estado: {guerra_actual.state} · "
-            f"{guerra_actual.team_size} vs {guerra_actual.team_size}\n"
+            f"{guerra_actual.team_size} vs {guerra_actual.team_size}",
+            f"Vamos {guerra_actual.clan.stars}⭐ vs {guerra_actual.opponent.stars}⭐ del rival\n",
         ]
         for m in sorted(guerra_actual.clan.members, key=lambda m: m.map_position):
             mejor_destruccion = max((a.destruction for a in m.attacks), default=0)
