@@ -19,6 +19,13 @@ ni roast ni elogio. Cada ataque se identifica por su "order" (unico dentro
 de la guerra), asi que no se repite en cada poll aunque el ataque siga en la
 lista -- la misma tabla sirve tanto para roasts como para elogios, solo
 importa que ya se avise una vez.
+
+Truco descubierto por el clan: citar (responder) un mensaje del propio bot o
+mencionarlo con "@" y correr /cagarse hace que el "citado" sea el bot mismo,
+osea que se autoinsultaria. El puente de WhatsApp (whatsapp-bridge/index.js)
+detecta esto y manda citado="BOT" en vez del JID real -- aca se le devuelve
+el chiste a quien lo intento (o a otro miembro vinculado al azar, para que
+nadie se sienta 100% a salvo).
 """
 import logging
 import random
@@ -105,6 +112,19 @@ FRASES_ELOGIO = [
     "¡Ese es mi pana, {jugador}! Subiendo de TH y sacando estrellas como si nada.",
 ]
 
+# Cuando alguien cita/menciona al propio bot para que se autoinsulte con
+# /cagarse -- el chiste se le devuelve a el (o a otro miembro al azar).
+FRASES_TROLL_BOT = [
+    "¡Ey {objetivo}! ¿Qué te pasa? ¿Te pica el culo? A mí no me vas a hacer que me insulte solo.",
+    "Este pana ({objetivo}) piensa que soy tan bobo como para insultarme a mí mismo. Ni que me hubiesen llamado, {objetivo}.",
+    "¿En serio, {objetivo}? Intentando que yo me cague a mí mismo... el que se cagó fuiste tú, mijo.",
+    "Nice try, {objetivo}. Yo no me insulto solo, pero a ti sí te puedo cagar gratis ahorita mismo.",
+    "{objetivo}, ese truquito de citarme ya me lo saben todos. Aquí el que queda mal eres tú.",
+    "¡Ah con {objetivo}! Queriendo que yo me insulte solo... más fácil me pica el ojo que caer en esa.",
+    "{objetivo}, pa' la próxima piensa mejor el troleo, porque el único cagado aquí terminaste siendo tú.",
+    "Jajaja {objetivo}, ¿en serio pensaste que iba a caer? El bobo resultaste ser tú, mi pana.",
+]
+
 
 def _armar_roast(jugador: str, motivo: str | None, pool: list[str] = FRASES) -> str:
     frase = random.choice(pool).format(jugador=jugador)
@@ -133,6 +153,24 @@ class Cagarse(commands.Cog):
     ) -> list[str] | tuple[list[str], list[str]]:
         argumentos = (argumentos or "").strip()
         citado = (citado or "").strip()
+
+        if citado == "BOT":
+            # El puente detecto que citaron/mencionaron al bot mismo para
+            # que se autoinsulte. Mitad de las veces se le devuelve a quien
+            # lo intento (remitente), mitad a otro miembro vinculado al azar
+            # -- asi nadie se siente 100% a salvo del troleo.
+            otros = [jid for jids in storage.jids_por_tag(self.db).values() for jid in jids if jid != remitente]
+            if remitente and (not otros or random.random() < 0.5):
+                objetivo_jid = remitente
+            elif otros:
+                objetivo_jid = random.choice(otros)
+            else:
+                objetivo_jid = remitente or None
+
+            if objetivo_jid:
+                mencion = f"@{objetivo_jid.split('@')[0]}"
+                return [random.choice(FRASES_TROLL_BOT).format(objetivo=mencion)], [objetivo_jid]
+            return [random.choice(FRASES_TROLL_BOT).format(objetivo="pana misterioso")]
 
         if citado:
             # Citaron ("deslizaron sobre") el mensaje de la victima en vez de

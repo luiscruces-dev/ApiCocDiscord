@@ -84,6 +84,25 @@ function limpiarMenciones(texto, msg) {
   return limpio.trim();
 }
 
+// Alguien puede citar/mencionar al PROPIO bot como "victima" de /cagarse
+// para intentar que se autoinsulte. Se detecta de dos formas:
+// - Citando un mensaje que el bot mando (su ID esta en misMensajesEnviados,
+//   sin importar que JID/lid use el bot dentro de ese grupo puntual).
+// - Mencionandolo con "@" directo en el texto (ahi si hace falta comparar
+//   contra el numero real de la sesion, sock.user.id).
+function citaOMencionaAlBot(msg) {
+  const contextInfo = contenidoReal(msg)?.extendedTextMessage?.contextInfo;
+  if (!contextInfo) return false;
+
+  if (contextInfo.stanzaId && misMensajesEnviados.has(contextInfo.stanzaId)) {
+    return true;
+  }
+
+  const miNumero = sock?.user?.id?.split(":")[0];
+  if (!miNumero) return false;
+  return (contextInfo.mentionedJid || []).some((jid) => jid.split("@")[0] === miNumero);
+}
+
 function dormir(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -160,7 +179,12 @@ async function manejarMensajeEntrante(msg) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${BOT_API_TOKEN}`,
       },
-      body: JSON.stringify({ nombre, argumentos, remitente, citado: extraerCitado(msg) }),
+      body: JSON.stringify({
+        nombre,
+        argumentos,
+        remitente,
+        citado: citaOMencionaAlBot(msg) ? "BOT" : extraerCitado(msg),
+      }),
     });
     const datos = await resp.json();
     respuesta = resp.ok ? datos.texto : datos.error || "Error desconocido consultando el bot de Discord.";
