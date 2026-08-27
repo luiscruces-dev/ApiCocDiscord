@@ -129,7 +129,7 @@ FRASES_TROLL_BOT = [
 def _armar_roast(jugador: str, motivo: str | None, pool: list[str] = FRASES) -> str:
     frase = random.choice(pool).format(jugador=jugador)
     if motivo:
-        frase += f" (según cuentan, por: _{motivo}_)"
+        frase += f" (_{motivo}_)"
     return frase
 
 
@@ -247,7 +247,15 @@ class Cagarse(commands.Cog):
                         jugador = f"{mencion} ({miembro.name})"
                     else:
                         jugador = miembro.name
-                    motivo = f"{ataque.stars}⭐/{ataque.destruction:.0f}% vs TH{rival.town_hall} ({rival.name})"
+
+                    if miembro.map_position == rival.map_position:
+                        ubicacion = f"#{miembro.map_position} (espejo)"
+                    else:
+                        ubicacion = f"#{miembro.map_position} atacó al #{rival.map_position} (fuera de espejo)"
+                    motivo = (
+                        f"{ubicacion} — {ataque.stars}⭐/{ataque.destruction:.0f}% — "
+                        f"TH{miembro.town_hall} vs TH{rival.town_hall}"
+                    )
 
                     texto = whatsapp.formatear_para_whatsapp(_armar_roast(jugador, motivo, pool))
                     await whatsapp.esperar_jitter(30)
