@@ -182,7 +182,13 @@ class ClanStats(commands.Cog):
         if mensaje:
             return mensaje
 
-        lineas = [f"**Rival — {guerra.opponent.name}** ({guerra.team_size} vs {guerra.team_size})\n"]
+        lineas = [f"**Rival — {guerra.opponent.name}** ({guerra.team_size} vs {guerra.team_size})"]
+        if guerra.is_cwl:
+            lineas.append(
+                "-# En CWL cada clan numera su roster de todo el grupo de liga (no se resincroniza 1-15 "
+                "por ronda), así que el número no se corresponde entre los dos lados — no se muestra espejo."
+            )
+        lineas.append("")
 
         conteo_nuestro: dict[int, int] = {}
         for m in guerra.clan.members:
@@ -200,7 +206,7 @@ class ClanStats(commands.Cog):
         lineas.append("**Bases enemigas:**")
         for m in sorted(guerra.opponent.members, key=lambda m: m.map_position):
             mejor_destruccion = max((a.destruction for a in m.attacks), default=0)
-            espejo = nuestro_por_posicion.get(m.map_position)
+            espejo = None if guerra.is_cwl else nuestro_por_posicion.get(m.map_position)
             espejo_texto = f" · espejo: **{espejo.name}** (TH{espejo.town_hall})" if espejo else ""
             lineas.append(
                 f"`{m.map_position:>2}.` **{m.name}** (TH{m.town_hall}) — {len(m.attacks)}/{guerra.attacks_per_member} "

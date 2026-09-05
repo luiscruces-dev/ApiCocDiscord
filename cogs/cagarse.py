@@ -248,7 +248,15 @@ class Cagarse(commands.Cog):
                     else:
                         jugador = miembro.name
 
-                    if miembro.map_position == rival.map_position:
+                    if war.is_cwl:
+                        # En CWL cada clan numera su propio roster de todo el
+                        # grupo de liga (no se resincroniza 1-15 por ronda),
+                        # asi que el mismo numero de los dos lados no
+                        # significa nada -- "espejo/fuera de espejo" seria
+                        # informacion inventada. Se muestran las dos
+                        # numeraciones tal cual, sin afirmar si es espejo.
+                        ubicacion = f"nuestro #{miembro.map_position} atacó al #{rival.map_position} de ellos"
+                    elif miembro.map_position == rival.map_position:
                         ubicacion = f"#{miembro.map_position} (espejo)"
                     else:
                         ubicacion = f"#{miembro.map_position} atacó al #{rival.map_position} (fuera de espejo)"

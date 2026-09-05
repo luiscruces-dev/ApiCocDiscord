@@ -48,6 +48,20 @@ class Estimacion(commands.Cog):
         if mensaje:
             return mensaje
 
+        if guerra.is_cwl:
+            # Toda la proyeccion depende de emparejar por espejo (mismo
+            # map_position de los dos lados), y en CWL cada clan numera su
+            # propio roster de todo el grupo de liga -- no se resincroniza
+            # 1-15 por ronda, asi que el numero no se corresponde entre los
+            # dos lados. Mejor avisar que inventar una proyeccion con datos
+            # que no significan lo que el comando cree que significan.
+            return [
+                f"**Estimación — guerra vs {guerra.opponent.name}**\n",
+                "Esta guerra es de CWL: en liga cada clan numera su roster de todo el grupo (no se "
+                "resincroniza 1-15 por ronda), así que el emparejamiento por espejo que usa este comando "
+                "no es válido acá. Usá `/guerra` para ver el marcador real mientras tanto.",
+            ]
+
         stats_clan = storage.stats_por_diferencia_th(self.db)
         rival_por_posicion = {m.map_position: m for m in guerra.opponent.members}
 
