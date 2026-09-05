@@ -98,6 +98,17 @@ CREATE TABLE IF NOT EXISTS cagadas_avisadas (
     attack_order INTEGER NOT NULL,
     UNIQUE(start_time, opponent_tag, attack_order)
 );
+
+-- Reporte neutral (no roast/elogio) de cada ataque nuestro durante CWL --
+-- tabla separada de cagadas_avisadas porque un mismo ataque puede disparar
+-- las dos cosas (el reporte neutral Y un roast/elogio), son avisos
+-- independientes.
+CREATE TABLE IF NOT EXISTS ataques_cwl_avisados (
+    start_time TEXT NOT NULL,
+    opponent_tag TEXT,
+    attack_order INTEGER NOT NULL,
+    UNIQUE(start_time, opponent_tag, attack_order)
+);
 """
 
 
@@ -503,6 +514,22 @@ def cagada_avisada(con, start_time: str, opponent_tag: str, attack_order: int) -
 def marcar_cagada_avisada(con, start_time: str, opponent_tag: str, attack_order: int):
     con.execute(
         "INSERT OR IGNORE INTO cagadas_avisadas (start_time, opponent_tag, attack_order) VALUES (?, ?, ?)",
+        (start_time, opponent_tag, attack_order),
+    )
+    con.commit()
+
+
+def ataque_cwl_avisado(con, start_time: str, opponent_tag: str, attack_order: int) -> bool:
+    fila = con.execute(
+        "SELECT 1 FROM ataques_cwl_avisados WHERE start_time = ? AND opponent_tag = ? AND attack_order = ?",
+        (start_time, opponent_tag, attack_order),
+    ).fetchone()
+    return fila is not None
+
+
+def marcar_ataque_cwl_avisado(con, start_time: str, opponent_tag: str, attack_order: int):
+    con.execute(
+        "INSERT OR IGNORE INTO ataques_cwl_avisados (start_time, opponent_tag, attack_order) VALUES (?, ?, ?)",
         (start_time, opponent_tag, attack_order),
     )
     con.commit()

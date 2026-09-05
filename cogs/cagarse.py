@@ -26,6 +26,13 @@ osea que se autoinsultaria. El puente de WhatsApp (whatsapp-bridge/index.js)
 detecta esto y manda citado="BOT" en vez del JID real -- aca se le devuelve
 el chiste a quien lo intento (o a otro miembro vinculado al azar, para que
 nadie se sienta 100% a salvo).
+
+Ademas, durante CWL especificamente (revisar_ataques_cwl, cada 5 min) se
+manda un reporte NEUTRAL de cada ataque nuestro -- quien atacó, a quien, y
+el resultado -- sin roast ni elogio. Es aparte del sistema de arriba (un
+mismo ataque puede disparar los dos avisos) porque en CWL cuesta mas seguir
+quien ataco a quien a simple vista (ver la nota de "espejo" en /rival), asi
+que conviene un registro claro ademas del chiste.
 """
 import logging
 import random
@@ -139,9 +146,11 @@ class Cagarse(commands.Cog):
         self.db = storage.conectar()
         bot.comandos_wa["cagarse"] = self._lineas_cagarse
         self.revisar_ataques.start()
+        self.revisar_ataques_cwl.start()
 
     def cog_unload(self):
         self.revisar_ataques.cancel()
+        self.revisar_ataques_cwl.cancel()
         self.db.close()
 
     @property
@@ -277,6 +286,63 @@ class Cagarse(commands.Cog):
 
     @revisar_ataques.before_loop
     async def antes_de_revisar_ataques(self):
+        await self.bot.wait_until_ready()
+
+    @tasks.loop(minutes=5)
+    async def revisar_ataques_cwl(self):
+        # Mismo espiritu que revisar_ataques: sobrevive meses corriendo
+        # solo, cualquier error se ignora y se reintenta en el proximo
+        # ciclo. Cadencia mas corta (5 min) porque acá el punto es enterarse
+        # rapido de cada ataque, no solo de los destacados.
+        if not whatsapp.configurado():
+            return
+        try:
+            war = await self.coc_client.get_current_war(config.CLAN_TAG)
+            if not war or war.state != "inWar" or not war.is_cwl:
+                return
+
+            for miembro in war.clan.members:
+                for ataque in miembro.attacks:
+                    if storage.ataque_cwl_avisado(self.db, war.start_time.raw_time, war.opponent.tag, ataque.order):
+                        continue
+                    storage.marcar_ataque_cwl_avisado(self.db, war.start_time.raw_time, war.opponent.tag, ataque.order)
+
+                    jids = storage.jids_de_tag(self.db, miembro.tag)
+                    if jids:
+                        mencion = " ".join(f"@{jid.split('@')[0]}" for jid in jids)
+                        atacante = f"{mencion} ({miembro.name})"
+                    else:
+                        atacante = miembro.name
+
+                    rival = ataque.defender
+                    if rival:
+                        texto = (
+                            f"⚔️ {atacante} atacó a **{rival.name}** (TH{rival.town_hall}) — "
+                            f"{ataque.stars}⭐/{ataque.destruction:.0f}% "
+                            f"(nuestro #{miembro.map_position} → #{rival.map_position} de ellos)"
+                        )
+                    else:
+                        texto = (
+                            f"⚔️ {atacante} atacó — {ataque.stars}⭐/{ataque.destruction:.0f}% "
+                            f"(no identifiqué al rival, nuestro #{miembro.map_position})"
+                        )
+
+                    texto = whatsapp.formatear_para_whatsapp(texto)
+                    await whatsapp.esperar_jitter(20)
+                    ok, detalle = await whatsapp.enviar(texto, mentions=jids)
+                    if not ok:
+                        logging.getLogger("apicocdiscord").warning(
+                            "revisar_ataques_cwl: no se pudo enviar (%s)", detalle
+                        )
+        except coc.HTTPException as e:
+            logging.getLogger("apicocdiscord").warning(
+                "revisar_ataques_cwl: error de la API, reintento en 5 min (%s)", e
+            )
+        except Exception:
+            logging.getLogger("apicocdiscord").exception("revisar_ataques_cwl: error inesperado, reintento en 5 min")
+
+    @revisar_ataques_cwl.before_loop
+    async def antes_de_revisar_ataques_cwl(self):
         await self.bot.wait_until_ready()
 
 
