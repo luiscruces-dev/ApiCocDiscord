@@ -293,7 +293,10 @@ class Cagarse(commands.Cog):
         # Mismo espiritu que revisar_ataques: sobrevive meses corriendo
         # solo, cualquier error se ignora y se reintenta en el proximo
         # ciclo. Cadencia mas corta (5 min) porque acá el punto es enterarse
-        # rapido de cada ataque, no solo de los destacados.
+        # rapido de cada ataque, no solo de los destacados -- pero el chequeo
+        # de storage.ataque_cwl_avisado de abajo asegura que cada ciclo solo
+        # mande mensaje por los ataques NUEVOS desde el ultimo poll, nunca
+        # reenvia ni resume los que ya se avisaron antes.
         if not whatsapp.configurado():
             return
         try:
@@ -318,14 +321,10 @@ class Cagarse(commands.Cog):
                     if rival:
                         texto = (
                             f"⚔️ {atacante} atacó a **{rival.name}** (TH{rival.town_hall}) — "
-                            f"{ataque.stars}⭐/{ataque.destruction:.0f}% "
-                            f"(nuestro #{miembro.map_position} → #{rival.map_position} de ellos)"
+                            f"{ataque.stars}⭐/{ataque.destruction:.0f}%"
                         )
                     else:
-                        texto = (
-                            f"⚔️ {atacante} atacó — {ataque.stars}⭐/{ataque.destruction:.0f}% "
-                            f"(no identifiqué al rival, nuestro #{miembro.map_position})"
-                        )
+                        texto = f"⚔️ {atacante} atacó — {ataque.stars}⭐/{ataque.destruction:.0f}% (no identifiqué al rival)"
 
                     texto = whatsapp.formatear_para_whatsapp(texto)
                     await whatsapp.esperar_jitter(20)
