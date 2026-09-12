@@ -1,39 +1,4 @@
-"""
-Comando de relajo para el clan: le tira un roast en venezolano a quien se
-mando una cagada atacando en guerra (o donde sea). Es puro chiste entre
-panas, no hay logica de Clash detras -- solo elige una frase al azar y la
-rellena con el nombre/mencion de la victima.
-
-Ademas de a pedido (/cagarse), un loop de fondo (revisar_ataques) detecta
-ataques destacados (para bien o para mal) durante una guerra activa y manda
-un mensaje automatico al grupo de WhatsApp -- igual que el resto de avisos
-automaticos del clan, nunca a Discord. Tres casos, cada uno con su tono:
-- Ataca hacia arriba (rival de TH mas alto) y saca 2+ estrellas: mérito real
-  -- FRASES_ELOGIO ("bien ataque, compai").
-- Ataca hacia abajo (rival de TH mas bajo) y no saca el pleno (3 estrellas):
-  no hay excusa, el TH estaba a favor -- FRASES_INFERIOR ("tratame en serio").
-- Ataca parejo o hacia arriba y saca 0 o 1 estrella: cagada normal, ahi si
-  hay margen -- FRASES de siempre.
-Atacar hacia arriba y sacar 0-1 estrella no dispara nada -- es lo esperable,
-ni roast ni elogio. Cada ataque se identifica por su "order" (unico dentro
-de la guerra), asi que no se repite en cada poll aunque el ataque siga en la
-lista -- la misma tabla sirve tanto para roasts como para elogios, solo
-importa que ya se avise una vez.
-
-Truco descubierto por el clan: citar (responder) un mensaje del propio bot o
-mencionarlo con "@" y correr /cagarse hace que el "citado" sea el bot mismo,
-osea que se autoinsultaria. El puente de WhatsApp (whatsapp-bridge/index.js)
-detecta esto y manda citado="BOT" en vez del JID real -- aca se le devuelve
-el chiste a quien lo intento (o a otro miembro vinculado al azar, para que
-nadie se sienta 100% a salvo).
-
-Ademas, durante CWL especificamente (revisar_ataques_cwl, cada 5 min) se
-manda un reporte NEUTRAL de cada ataque nuestro -- quien atacó, a quien, y
-el resultado -- sin roast ni elogio. Es aparte del sistema de arriba (un
-mismo ataque puede disparar los dos avisos) porque en CWL cuesta mas seguir
-quien ataco a quien a simple vista (ver la nota de "espejo" en /rival), asi
-que conviene un registro claro ademas del chiste.
-"""
+"""Roasts y elogios de ataques de guerra, a pedido (/cagarse) y automaticos por WhatsApp."""
 import logging
 import random
 
@@ -82,9 +47,6 @@ FRASES = [
     "¡Ay {jugador}! Esa fue floja hasta pa'l TH9 de tu abuela.",
 ]
 
-# Caso aparte: atacar a un TH mas bajo y no sacar el pleno. Ahi no hay
-# excusa de dificultad -- el tono es mas de "faltarle el respeto al clan"
-# que de cagada comun.
 FRASES_INFERIOR = [
     "Uy mano {jugador}, trátame en serio, ¿cómo no vas a sacar pleno contra un TH más bajo?",
     "{jugador}, ese TH le quedó grande a la base y pequeño a la excusa. ¡Trátame en serio, pana!",
@@ -104,8 +66,6 @@ FRASES_INFERIOR = [
     "Jeho, fíjate lo que hizo {jugador}: TH más bajo y ni el pleno sacó. A ese sí hay que darle cuello, sin lástima.",
 ]
 
-# Caso contrario: atacar a un TH mas alto y sacar 2 o 3 estrellas. Ahi si hay
-# merito real, tono de elogio en vez de roast.
 FRASES_ELOGIO = [
     "¡Bien ataque, compai {jugador}! Le rompiste el rancho a un TH más alto que el tuyo.",
     "¡Eso sí es tener pantalones, {jugador}! Atacaste pa'rriba y te la comiste completa.",
@@ -119,8 +79,6 @@ FRASES_ELOGIO = [
     "¡Ese es mi pana, {jugador}! Subiendo de TH y sacando estrellas como si nada.",
 ]
 
-# Cuando alguien cita/menciona al propio bot para que se autoinsulte con
-# /cagarse -- el chiste se le devuelve a el (o a otro miembro al azar).
 FRASES_TROLL_BOT = [
     "¡Ey {objetivo}! ¿Qué te pasa? ¿Te pica el culo? A mí no me vas a hacer que me insulte solo.",
     "Este pana ({objetivo}) piensa que soy tan bobo como para insultarme a mí mismo. Ni que me hubiesen llamado, {objetivo}.",
@@ -164,10 +122,6 @@ class Cagarse(commands.Cog):
         citado = (citado or "").strip()
 
         if citado == "BOT":
-            # El puente detecto que citaron/mencionaron al bot mismo para
-            # que se autoinsulte. Mitad de las veces se le devuelve a quien
-            # lo intento (remitente), mitad a otro miembro vinculado al azar
-            # -- asi nadie se siente 100% a salvo del troleo.
             otros = [jid for jids in storage.jids_por_tag(self.db).values() for jid in jids if jid != remitente]
             if remitente and (not otros or random.random() < 0.5):
                 objetivo_jid = remitente
@@ -182,10 +136,6 @@ class Cagarse(commands.Cog):
             return [random.choice(FRASES_TROLL_BOT).format(objetivo="pana misterioso")]
 
         if citado:
-            # Citaron ("deslizaron sobre") el mensaje de la victima en vez de
-            # escribir su nombre -- se la etiqueta de verdad con su JID real,
-            # igual que /recordar, y el texto despues de /cagarse (si hay) es
-            # directo el motivo, no un nombre.
             cuentas = storage.tags_de_jid(self.db, citado)
             nombre = cuentas[0][1] if cuentas else None
             mencion = f"@{citado.split('@')[0]}"
@@ -214,9 +164,6 @@ class Cagarse(commands.Cog):
 
     @tasks.loop(minutes=10)
     async def revisar_ataques(self):
-        # Mismo espiritu que revisar_guerra/aviso_inicio_guerra: este loop
-        # tiene que sobrevivir meses corriendo solo, cualquier error se
-        # ignora y se reintenta en el proximo ciclo, nunca se cae.
         if not whatsapp.configurado():
             return
         try:
@@ -231,19 +178,12 @@ class Cagarse(commands.Cog):
                         continue
 
                     if rival.town_hall > miembro.town_hall and ataque.stars >= 2:
-                        # Atacar hacia arriba y sacar 2-3 estrellas es merito
-                        # real -- elogio, no roast.
                         pool = FRASES_ELOGIO
                     elif rival.town_hall < miembro.town_hall and ataque.stars < 3:
-                        # Atacar hacia abajo y no sacar pleno no tiene excusa
-                        # de dificultad -- tono aparte, mas exigente.
                         pool = FRASES_INFERIOR
                     elif rival.town_hall <= miembro.town_hall and ataque.stars <= 1:
-                        # Parejo o hacia abajo y 0-1 estrella: cagada comun.
                         pool = FRASES
                     else:
-                        # Hacia arriba con 0-1 estrella (esperable) o parejo
-                        # con 2+ (tampoco es cagada): no dispara nada.
                         continue
 
                     if storage.cagada_avisada(self.db, war.start_time.raw_time, war.opponent.tag, ataque.order):
@@ -258,12 +198,7 @@ class Cagarse(commands.Cog):
                         jugador = miembro.name
 
                     if war.is_cwl:
-                        # En CWL cada clan numera su propio roster de todo el
-                        # grupo de liga (no se resincroniza 1-15 por ronda),
-                        # asi que el mismo numero de los dos lados no
-                        # significa nada -- "espejo/fuera de espejo" seria
-                        # informacion inventada. Se muestran las dos
-                        # numeraciones tal cual, sin afirmar si es espejo.
+                        # En CWL la numeracion no se corresponde entre clanes.
                         ubicacion = f"nuestro #{miembro.map_position} atacó al #{rival.map_position} de ellos"
                     elif miembro.map_position == rival.map_position:
                         ubicacion = f"#{miembro.map_position} (espejo)"
@@ -290,13 +225,6 @@ class Cagarse(commands.Cog):
 
     @tasks.loop(minutes=5)
     async def revisar_ataques_cwl(self):
-        # Mismo espiritu que revisar_ataques: sobrevive meses corriendo
-        # solo, cualquier error se ignora y se reintenta en el proximo
-        # ciclo. Cadencia mas corta (5 min) porque acá el punto es enterarse
-        # rapido de cada ataque, no solo de los destacados -- pero el chequeo
-        # de storage.ataque_cwl_avisado de abajo asegura que cada ciclo solo
-        # mande mensaje por los ataques NUEVOS desde el ultimo poll, nunca
-        # reenvia ni resume los que ya se avisaron antes.
         if not whatsapp.configurado():
             return
         try:

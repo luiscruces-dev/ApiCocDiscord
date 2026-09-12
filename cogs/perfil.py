@@ -1,7 +1,3 @@
-"""
-Vista 360 de un jugador: junta en un solo lugar lo que hoy esta repartido
-entre /reputacion, /kda, /donaciones y /capital.
-"""
 import coc
 import discord
 from discord import app_commands
@@ -27,8 +23,7 @@ class Perfil(commands.Cog):
         return self.bot.coc_client
 
     def _buscar_miembro(self, clan, identificador: str):
-        """Busca un miembro del clan por tag (con o sin #) o por nombre
-        (case-insensitive, primera coincidencia)."""
+        """Por tag o por nombre exacto (sin distinguir mayusculas)."""
         tag = coc.utils.correct_tag(identificador)
         miembro = clan.get_member(tag)
         if miembro:
@@ -52,7 +47,6 @@ class Perfil(commands.Cog):
 
         lineas = [f"**Perfil — {miembro.name}** ({miembro.tag})\n"]
 
-        # Reputacion de la temporada actual
         temporada = reputacion.temporada_actual()
         ranking = storage.ranking_reputacion(self.db, temporada)
         rep = ranking.get(miembro.tag)
@@ -67,7 +61,6 @@ class Perfil(commands.Cog):
         else:
             lineas.append("**Reputación:** sin datos todavía esta temporada.")
 
-        # KDA historico de guerra
         stats = storage.stats_por_jugador(self.db).get(miembro.tag)
         if stats:
             prom_destruccion = stats["destruccion_total"] / stats["ataques"] if stats["ataques"] else 0
@@ -80,11 +73,9 @@ class Perfil(commands.Cog):
         else:
             lineas.append("**KDA de guerra:** sin guerras guardadas todavía.")
 
-        # Donaciones en vivo (temporada actual, directo del clan)
         ratio = f"{miembro.donations / miembro.received:.1f}x" if miembro.received else "—"
         lineas.append(f"**Donaciones:** {miembro.donations} dadas / {miembro.received} recibidas ({ratio})")
 
-        # Capital del ultimo Raid Weekend
         try:
             raid_log = await self.coc_client.get_raid_log(config.CLAN_TAG, limit=1)
             entradas = list(raid_log)

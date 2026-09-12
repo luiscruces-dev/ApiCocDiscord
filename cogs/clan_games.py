@@ -1,27 +1,7 @@
-#aca el rollo es este, le podes preguntar a la API cuantos puntos
-# del juego del clan lleva este jugador te va a responder un numero gigante
-# tipo 280,000 porque ese numero es TODO LO QUE HA GANADO EN SU VIDA,
-# sumando cada edicion del evento desde que existe la cuenta. La API no
-# tiene forma de decirnos cuanto llevas EN ESTE evento que esta corriendo
-# ahora mismo ese dato simplemente no existe como tal en ningun lado.
-#
-# La buena noticia es que ese numero nunca baja, solo sube. Entonces el
-# truco es medio tonto pero funciona, le sacamos una foto a ese
-# numero de cada jugador justo cuando arranca el evento (/clangames iniciar),
-# y le sacamos otra foto cuando termina (/clangames cerrar). Lo que gano
-# cada quien en el medio es ni mas ni menos que: foto_final - foto_inicial.
-# Restas y ya, te cuadra perfecto.
-#
-# El unico costo de esto es que alguien (cualquier colider) le tiene que avisar
-# al bot cuando arranca y cuando termina el evento, porque la API tampoco
-# nos dice eso no hay forma de que el bot lo adivine solo, o bueno a mi no se me ocurrio
-#
-# ACTUALIZACION: Supercell corre Clan Games con calendario fijo hace anios
-# (22 al 28 de cada mes, UTC), asi que ademas de los comandos manuales de
-# arriba, un loop de fondo revisa la fecha y abre/cierra la medicion solo.
-# La API no confirma este calendario en ningun lado -- si Supercell lo llega
-# a cambiar, el aviso automatico de abajo lo recuerda para que se ajusten
-# DIA_INICIO_CLAN_GAMES / DIA_CIERRE_CLAN_GAMES.
+"""
+La API solo da los puntos de Clan Games acumulados de toda la vida, asi que
+se mide con una foto al inicio y otra al cierre del evento (22 al 28, UTC).
+"""
 import logging
 from datetime import datetime, timezone
 
@@ -115,10 +95,6 @@ class ClanGames(commands.Cog):
         await enviar_en_paginas(interaction, await self._lineas_progreso())
 
     async def _lineas_progreso(self, argumentos: str = "", remitente: str = "") -> list[str]:
-        # A diferencia de /clangames cerrar, esto NO cierra la medicion ni
-        # guarda un snapshot nuevo -- solo compara la foto de ahora mismo
-        # contra el punto de partida guardado en /clangames iniciar, para
-        # ver como van sin terminar el evento.
         sesion_id = storage.sesion_clan_games_abierta(self.db)
         if not sesion_id:
             return [
@@ -159,9 +135,6 @@ class ClanGames(commands.Cog):
 
     @tasks.loop(minutes=15)
     async def revisar_clan_games(self):
-        # Igual que revisar_guerra en historial_guerras.py: este loop tiene que
-        # sobrevivir meses corriendo solo, cualquier error se ignora y se
-        # reintenta en el proximo ciclo, nunca se cae.
         try:
             hoy = datetime.now(timezone.utc).day
             sesion_abierta = storage.sesion_clan_games_abierta(self.db)

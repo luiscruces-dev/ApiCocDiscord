@@ -108,10 +108,7 @@ class ClanStats(commands.Cog):
         if temporada.state != "ongoing":
             return lineas
 
-        # Mientras el Raid Weekend siga abierto, se avisa quien le falta
-        # atacar -- el registro de la API solo trae a quien ya ataco al
-        # menos una vez, asi que hay que cruzar con la lista completa del
-        # clan para pescar tambien a quien todavia no ataco nada.
+        # El raid log solo trae a quien ya ataco, se cruza con el clan completo.
         try:
             clan = await self.coc_client.get_clan(config.CLAN_TAG)
         except coc.HTTPException:

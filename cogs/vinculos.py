@@ -1,30 +1,4 @@
-"""
-Vincula un numero de WhatsApp con un tag de jugador del clan, para poder
-etiquetarlo directo cuando /recordar detecta que le faltan ataques en la
-guerra activa. Relacion muchos-a-muchos: un mismo numero puede tener
-varias cuentas vinculadas (multicuenta, cada /vincular con un tag nuevo
-suma, no reemplaza), y una misma cuenta puede tener mas de un numero
-vinculado (ej. una pareja que juega desde un tag compartido — a los dos
-les llega la mencion cuando le falta atacar a esa cuenta).
-
-A diferencia del resto de comandos_wa, estos SI escriben en la base de
-datos (ver README de whatsapp-bridge, que documenta por que los comandos
-que cambian estado del clan quedan exclusivos de Discord). Se hace una
-excepcion acá porque vincularse no afecta al clan en nada — en el peor caso
-alguien se vincula con el tag equivocado, y se corrige mandando /vincular
-de nuevo o /desvincular.
-
-Ademas de /recordar (a pedido, en el grupo), tres loops de fondo avisan
-solos por WhatsApp:
-- aviso_pre_guerra (cada 10 min) manda un chiste avisando que la guerra
-  arranca en <=30 min, mientras siga en dia de preparacion.
-- aviso_inicio_guerra (cada 10 min) manda un aviso especial UNA vez apenas
-  arranca cada guerra ("hemos iniciado guerra").
-- recordatorio_automatico (cada 4h) manda el recordatorio normal mientras
-  la guerra siga activa y falte alguien por atacar.
-Los tres son silenciosos el resto del tiempo (no avisan "no hay guerra"
-seguido, eso solo lo dice /recordar cuando alguien lo pide a mano).
-"""
+"""Vinculos WhatsApp <-> tag de jugador, /recordar y avisos automaticos de guerra."""
 import logging
 import random
 from datetime import datetime, timedelta, timezone
@@ -106,9 +80,6 @@ class Vinculos(commands.Cog):
 
         otros_numeros = [jid for jid in storage.jids_de_tag(self.db, miembro.tag) if jid != remitente]
         if otros_numeros:
-            # Cuenta compartida (ej. una pareja): a partir de ahora se
-            # etiqueta a todos los numeros vinculados a esta cuenta, no
-            # solo al que acaba de escribir /vincular.
             lineas.append(
                 f"Ojo: esta cuenta ya tenía {len(otros_numeros)} número(s) vinculado(s) — "
                 f"ahora a todos les va a llegar la mención en `/recordar`."
@@ -130,10 +101,7 @@ class Vinculos(commands.Cog):
         return [f"Listo, te desvinculé {borrados} cuenta{'s' if borrados != 1 else ''}."]
 
     async def _estado_guerra_faltan(self):
-        """(estado, guerra, faltan). estado in: privado, error_api, sin_guerra,
-        preparacion, terminada, ok. guerra/faltan solo estan poblados en los
-        casos donde tiene sentido (preparacion/terminada traen guerra sin
-        faltan; ok trae los dos)."""
+        """(estado, guerra, faltan). estado: privado, error_api, sin_guerra, preparacion, terminada u ok."""
         try:
             guerra = await self.coc_client.get_current_war(config.CLAN_TAG)
         except coc.PrivateWarLog:
@@ -162,13 +130,6 @@ class Vinculos(commands.Cog):
             usados = len(m.attacks)
             jids_cuenta = jids.get(m.tag, [])
             if jids_cuenta:
-                # El JID real (con su dominio real: @s.whatsapp.net o @lid segun
-                # como direccione WhatsApp a esta persona en el grupo) va tal
-                # cual en "menciones" — el puente NO debe reconstruirlo a mano,
-                # porque adivinar mal el dominio hace que WhatsApp no lo
-                # reconozca como mencion real. Si la cuenta tiene mas de un
-                # numero vinculado (ej. una pareja compartiendo un tag), se
-                # etiqueta a todos.
                 menciones_texto = " ".join(f"@{jid.split('@')[0]}" for jid in jids_cuenta)
                 quien = f"{menciones_texto} ({m.name})"
                 menciones.extend(jids_cuenta)
@@ -200,9 +161,6 @@ class Vinculos(commands.Cog):
 
     @tasks.loop(minutes=10)
     async def aviso_pre_guerra(self):
-        # Mismo espiritu que aviso_inicio_guerra: chequeo cada 10 min, se
-        # guarda en avisos_pre_guerra para no repetirlo si el bot reinicia
-        # a mitad de la ventana de 30 min ya avisada.
         if not whatsapp.configurado():
             return
         try:
@@ -237,11 +195,6 @@ class Vinculos(commands.Cog):
 
     @tasks.loop(minutes=10)
     async def aviso_inicio_guerra(self):
-        # Chequeo frecuente (mismo intervalo que revisar_guerra en
-        # historial_guerras.py) para pescar el arranque de la guerra rapido,
-        # no recien en el proximo tick del recordatorio de 4h. Se guarda en
-        # avisos_inicio_guerra para no repetir el aviso si el bot reinicia
-        # a mitad de una guerra ya avisada.
         if not whatsapp.configurado():
             return
         try:
@@ -275,11 +228,6 @@ class Vinculos(commands.Cog):
 
     @tasks.loop(hours=4)
     async def recordatorio_automatico(self):
-        # Mismo espiritu que revisar_guerra en historial_guerras.py: este loop
-        # tiene que sobrevivir meses corriendo solo, cualquier error se ignora
-        # y se reintenta en el proximo ciclo, nunca se cae. A diferencia de
-        # /recordar (a pedido), acá NO se avisa nada si no hay guerra activa o
-        # ya atacaron todos — solo interrumpe cuando hay algo que decir.
         if not whatsapp.configurado():
             return
         try:
@@ -287,12 +235,7 @@ class Vinculos(commands.Cog):
             if estado != "ok" or not faltan:
                 return
 
-            # tasks.loop dispara una vez apenas arranca (osea, en cada
-            # reinicio/deploy del bot) ademas de cada 4h. Sin este chequeo,
-            # reiniciar el bot durante una guerra activa manda un
-            # recordatorio de mas cada vez -- por eso se guarda el ultimo
-            # envio real y se exige un margen (un poco menos de 4h, por si
-            # el tick natural cae un ratito antes) antes de repetir.
+            # tasks.loop dispara al arrancar; evita reenviar en cada reinicio.
             ultimo = storage.ultimo_recordatorio_automatico(self.db)
             if ultimo:
                 desde_ultimo = datetime.now(timezone.utc) - datetime.fromisoformat(ultimo)

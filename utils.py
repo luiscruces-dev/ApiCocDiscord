@@ -3,7 +3,7 @@ import discord
 
 import config
 
-LIMITE_CARACTERES = 1900  # margen bajo el limite de 2000 de Discord por mensaje por si acasito
+LIMITE_CARACTERES = 1900
 
 
 def tiempo_legible(segundos: int) -> str:
@@ -18,10 +18,7 @@ def tiempo_legible(segundos: int) -> str:
 
 
 async def obtener_guerra_o_mensaje(coc_client: coc.Client, titulo: str):
-    """(guerra, None) si hay guerra con detalle para mostrar (en curso o
-    recien terminada), o (None, lineas) con el mensaje a devolver directo
-    (error, sin guerra, o en dia de preparacion). Compartido entre /guerra,
-    /rival y /estimacion — los tres arrancan revisando lo mismo."""
+    """(guerra, None) si hay guerra para mostrar, o (None, lineas) con el mensaje a devolver."""
     try:
         guerra = await coc_client.get_current_war(config.CLAN_TAG)
     except coc.PrivateWarLog:

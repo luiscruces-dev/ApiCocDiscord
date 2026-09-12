@@ -1,13 +1,4 @@
-"""
-Proyeccion de estrellas para la guerra ACTUAL, basada en el historial real
-del clan por diferencia de TH (no una formula inventada). Los ataques que
-ya se hicieron cuentan las estrellas reales; los que faltan se estiman
-contra el "espejo" (mismo map_position del lado rival, igual que /rival),
-usando el promedio historico -- primero el del jugador si tiene suficientes
-ataques guardados a esa diferencia (>= MINIMO_MUESTRA_PERSONAL), si no el
-promedio de todo el clan a esa diferencia. Sin historial a esa diferencia
-todavia, se marca como tal en vez de inventar un numero.
-"""
+"""Proyeccion de estrellas de la guerra actual segun el historial por diferencia de TH."""
 import coc
 import discord
 from discord import app_commands
@@ -33,8 +24,7 @@ class Estimacion(commands.Cog):
         return self.bot.coc_client
 
     def _estimar_para(self, jugador_tag: str, diferencia: int, stats_clan: dict):
-        """(stats, origen) donde origen es 'personal' o 'clan', o (None, None)
-        si no hay historial de nadie a esa diferencia."""
+        """(stats, 'personal' | 'clan'), o (None, None) sin historial."""
         personal = storage.stats_por_diferencia_th(self.db, jugador_tag).get(diferencia)
         if personal and personal["ataques"] >= MINIMO_MUESTRA_PERSONAL:
             return personal, "personal"
@@ -49,12 +39,6 @@ class Estimacion(commands.Cog):
             return mensaje
 
         if guerra.is_cwl:
-            # Toda la proyeccion depende de emparejar por espejo (mismo
-            # map_position de los dos lados), y en CWL cada clan numera su
-            # propio roster de todo el grupo de liga -- no se resincroniza
-            # 1-15 por ronda, asi que el numero no se corresponde entre los
-            # dos lados. Mejor avisar que inventar una proyeccion con datos
-            # que no significan lo que el comando cree que significan.
             return [
                 f"**Estimación — guerra vs {guerra.opponent.name}**\n",
                 "Esta guerra es de CWL: en liga cada clan numera su roster de todo el grupo (no se "
@@ -65,10 +49,6 @@ class Estimacion(commands.Cog):
         stats_clan = storage.stats_por_diferencia_th(self.db)
         rival_por_posicion = {m.map_position: m for m in guerra.opponent.members}
 
-        # El maximo real de una guerra es team_size * 3 (3 estrellas por
-        # base rival, sin importar cuantos ataques reciba) -- NO
-        # attacks_per_member * 3. war.clan.stars/max_stars ya lo calculan
-        # bien del lado oficial, mejor usar eso que sumarlo a mano.
         total_estimado = float(guerra.clan.stars)
         total_posible = guerra.clan.max_stars
         lineas_detalle = []
@@ -82,11 +62,6 @@ class Estimacion(commands.Cog):
                 lineas_detalle.append(f"`{m.map_position:>2}.` **{m.name}** — sin rival asignado en esa posición")
                 continue
 
-            # best_opponent_attack es el mejor resultado que YA le sacamos a
-            # esa base puntual (no m.star_count, que es la suma de estrellas
-            # del jugador en SUS ataques y puede superar 3 si reataco la
-            # misma base o no coincide con lo que cuenta para el marcador
-            # oficial de la guerra).
             estrellas_en_base = rival.best_opponent_attack.stars if rival.best_opponent_attack else 0
             diferencia = rival.town_hall - m.town_hall
             comparacion = f"{diferencia:+d}" if diferencia else "mismo TH"
@@ -99,7 +74,7 @@ class Estimacion(commands.Cog):
                 )
                 continue
 
-            margen = 3 - estrellas_en_base  # techo real: no se puede pasar de 3 en una base
+            margen = 3 - estrellas_en_base
             stats, origen = self._estimar_para(m.tag, diferencia, stats_clan)
             if stats:
                 estimado_pendientes = min(stats["estrellas_prom"] * pendientes, margen)

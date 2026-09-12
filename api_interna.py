@@ -1,17 +1,4 @@
-"""
-API interna (solo localhost) que consulta el puente de WhatsApp para
-responder comandos de solo lectura escritos en el grupo. El bot de Discord
-sigue siendo el único que habla con la API de Clash y con la base de datos;
-esto solo expone esa misma lógica por HTTP para que el puente (Node) la
-pueda pedir.
-
-Cada cog registra sus comandos disponibles en bot.comandos_wa: nombre ->
-función async(argumentos: str, remitente: str) -> list[str] (las mismas
-líneas que arma cada comando de Discord, antes de paginarlas). argumentos es
-el resto del texto después del nombre del comando (ej. el tag en
-"/vincular #ABC123"), y remitente es el JID de WhatsApp de quien lo escribió
-— la mayoría de los comandos ignoran ambos.
-"""
+"""API HTTP interna (solo localhost) que usa el puente de WhatsApp para ejecutar bot.comandos_wa."""
 import inspect
 import logging
 
@@ -46,10 +33,6 @@ def _crear_app(bot) -> web.Application:
                 {"error": f"Comando desconocido. Disponibles: {disponibles}"}, status=404
             )
 
-        # "citado" (JID de quien escribio el mensaje que se cito/respondio,
-        # ej. deslizando sobre el en WhatsApp) es opcional -- solo se le pasa
-        # a los pocos comandos que lo declaran (ej. /cagarse), el resto ni se
-        # entera de que existe.
         kwargs = {"argumentos": argumentos, "remitente": remitente}
         if "citado" in inspect.signature(fn).parameters:
             kwargs["citado"] = citado
@@ -60,9 +43,6 @@ def _crear_app(bot) -> web.Application:
             log.exception("api_interna: error ejecutando comando '%s' pedido desde WhatsApp", nombre)
             return web.json_response({"error": "Error interno ejecutando el comando"}, status=500)
 
-        # La mayoría de los comandos devuelven solo list[str]. Los que
-        # etiquetan gente (ej. /recordar) devuelven además la lista de JIDs
-        # reales a mencionar — el puente los usa tal cual, sin reconstruirlos.
         if isinstance(resultado, tuple):
             lineas, menciones = resultado
         else:

@@ -1,14 +1,6 @@
 """
-Historial de guerras y KDA por jugador.
-
-La API solo da detalle por jugador (contra que TH se enfrento, estrellas) de
-la guerra que esta activa ahora mismo (get_current_war). El historial viejo
-(get_war_log) solo trae totales del clan, no por jugador — es limitacion de
-la API, no nuestra. Por eso esto guarda cada guerra apenas termina, y el
-historial/KDA se va construyendo desde ahora en adelante, guerra por guerra.
-
-Nota: probado con guerras normales. CWL usa el mismo get_current_war pero no
-lo hemos visto en vivo todavia — si algo sale raro en liga, avisa.
+Historial de guerras y KDA por jugador. get_war_log no trae detalle por
+jugador, asi que cada guerra se guarda apenas termina.
 """
 import logging
 
@@ -43,9 +35,6 @@ class HistorialGuerras(commands.Cog):
 
     @tasks.loop(minutes=10)
     async def revisar_guerra(self):
-        # Este loop tiene que sobrevivir meses corriendo solo — cualquier error
-        # de la API (incluyendo cosas raras de la transicion entre rondas de
-        # CWL) se ignora y se reintenta en el proximo ciclo, nunca se cae.
         try:
             war = await self.coc_client.get_current_war(config.CLAN_TAG)
 
@@ -66,9 +55,6 @@ class HistorialGuerras(commands.Cog):
         await self.bot.wait_until_ready()
 
     async def _avisar_resultado_guerra(self, war):
-        # Va al grupo de WhatsApp como el resto de los avisos automaticos
-        # (aviso_inicio_guerra / recordatorio_automatico en vinculos.py),
-        # no a Discord -- ahi no se usa el bot como tal.
         if not whatsapp.configurado():
             return
 

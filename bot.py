@@ -21,9 +21,6 @@ class ClanBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix="!", intents=intents)
         self.coc_client: coc.Client | None = None
-        # nombre de comando -> función async que devuelve list[str], para que
-        # el puente de WhatsApp pueda pedir la misma info que dan los slash
-        # commands de solo lectura. Cada cog se registra sola (ver api_interna.py).
         self.comandos_wa: dict = {}
 
     async def setup_hook(self):

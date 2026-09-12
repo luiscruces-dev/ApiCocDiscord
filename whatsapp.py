@@ -15,24 +15,13 @@ def configurado() -> bool:
 
 
 async def esperar_jitter(maximo_segundos: float):
-    """Pausa un tiempo random (0 a maximo_segundos) antes de mandar un aviso
-    automatico, para que la cadencia de mensajes no caiga siempre justo en
-    el mismo instante del intervalo — un patron muy regular es lo tipico de
-    un script, no de una persona avisando algo."""
     if maximo_segundos > 0:
         await asyncio.sleep(random.uniform(0, maximo_segundos))
 
 
 def formatear_para_whatsapp(texto: str) -> str:
-    """Convierte el markdown estilo Discord (**negrita**, `backticks`) que usan
-    las lineas de los comandos al formato que realmente soporta WhatsApp."""
-    # Discord usa **negrita**, WhatsApp usa *negrita* — sin esto se ven los
-    # asteriscos dobles literales en el grupo.
+    """Convierte el markdown de Discord al formato de WhatsApp."""
     texto = re.sub(r"\*\*(.+?)\*\*", r"*\1*", texto)
-    # Los `backticks` de Discord (monoespaciado) no se soportan igual en
-    # WhatsApp y quedan mostrando simbolos raros o cajas inconsistentes.
-    # Se sacan del todo; el espacio de relleno que dejaban (para alinear
-    # numeros de ranking) se limpia despues.
     texto = texto.replace("`", "")
     texto = re.sub(r"^ +", "", texto, flags=re.MULTILINE)
     return texto

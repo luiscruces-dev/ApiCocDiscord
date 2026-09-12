@@ -89,9 +89,7 @@ CREATE TABLE IF NOT EXISTS recordatorios_automaticos (
     ultimo_envio TEXT NOT NULL
 );
 
--- El nombre quedo de cuando /cagarse solo hacia roasts, pero tambien trackea
--- los ataques que dispararon un elogio (FRASES_ELOGIO en cagarse.py) -- en
--- los dos casos, el punto es no volver a avisar el mismo ataque.
+-- Tambien registra los ataques que dispararon un elogio.
 CREATE TABLE IF NOT EXISTS cagadas_avisadas (
     start_time TEXT NOT NULL,
     opponent_tag TEXT,
@@ -99,10 +97,6 @@ CREATE TABLE IF NOT EXISTS cagadas_avisadas (
     UNIQUE(start_time, opponent_tag, attack_order)
 );
 
--- Reporte neutral (no roast/elogio) de cada ataque nuestro durante CWL --
--- tabla separada de cagadas_avisadas porque un mismo ataque puede disparar
--- las dos cosas (el reporte neutral Y un roast/elogio), son avisos
--- independientes.
 CREATE TABLE IF NOT EXISTS ataques_cwl_avisados (
     start_time TEXT NOT NULL,
     opponent_tag TEXT,
@@ -113,9 +107,7 @@ CREATE TABLE IF NOT EXISTS ataques_cwl_avisados (
 
 
 def _migrar_vinculos_wa(con):
-    """vinculos_wa empezo con wa_jid como PK (un numero, un solo tag). Para
-    soportar multicuenta (un numero, varios tags) el PK paso a player_tag.
-    Si la tabla ya existe con el esquema viejo, se migra sin perder datos."""
+    """Migra vinculos_wa del PK viejo (wa_jid) a player_tag."""
     columnas = con.execute("PRAGMA table_info(vinculos_wa)").fetchall()
     pk_actual = next((col[1] for col in columnas if col[5] == 1), None)
     if pk_actual != "wa_jid":
@@ -137,11 +129,7 @@ def _migrar_vinculos_wa(con):
 
 
 def _migrar_vinculos_wa_multi_numero(con):
-    """vinculos_wa tenia player_tag solo como PK (una cuenta, un solo
-    numero). Para que una cuenta compartida (ej. una pareja jugando desde
-    el mismo tag) pueda tener mas de un numero vinculado, el PK paso a ser
-    (player_tag, wa_jid). Migra sin perder datos si la tabla todavia tiene
-    el esquema viejo."""
+    """Migra vinculos_wa al PK compuesto (player_tag, wa_jid)."""
     columnas = con.execute("PRAGMA table_info(vinculos_wa)").fetchall()
     columnas_pk = {col[1] for col in columnas if col[5] > 0}
     if columnas_pk == {"player_tag", "wa_jid"}:
@@ -256,7 +244,7 @@ def stats_por_jugador(con) -> dict:
             "subio": 0, "bajo": 0, "igual": 0,
             "veces_atacado": 0, "estrellas_recibidas": 0,
         })
-        s["nombre"] = nombre  # se queda con el nombre mas reciente que veamos
+        s["nombre"] = nombre
         if es_defensa:
             s["veces_atacado"] += 1
             s["estrellas_recibidas"] += stars
@@ -275,11 +263,8 @@ def stats_por_jugador(con) -> dict:
 
 
 def stats_por_diferencia_th(con, player_tag: str | None = None) -> dict:
-    """diferencia (enemy_th - player_th, ej. +1 = atacando un TH mas alto)
-    -> {ataques, estrellas_prom, destruccion_prom, triples_pct}. Sin
-    player_tag, junta los ataques de TODO el clan (para /estimacion cuando
-    no hay suficiente muestra personal); con player_tag, solo los de ese
-    jugador."""
+    """(enemy_th - player_th) -> {ataques, estrellas_prom, destruccion_prom, triples_pct}.
+    Sin player_tag junta todo el clan."""
     query = (
         "SELECT enemy_th - player_th AS diferencia, COUNT(*), AVG(stars), AVG(destruction), "
         "SUM(CASE WHEN stars = 3 THEN 1 ELSE 0 END) "
@@ -338,9 +323,7 @@ def guardar_snapshot_clan_games(con, sesion_id: int, momento: str, jugadores):
 
 
 def puntos_inicio_clan_games(con, sesion_id: int) -> dict[str, int]:
-    """player_tag -> puntos del snapshot de inicio de esa sesion (sin
-    necesitar que ya haya un snapshot de cierre -- sirve para ver el
-    progreso en vivo mientras el evento sigue corriendo)."""
+    """player_tag -> puntos del snapshot de inicio de esa sesion."""
     return dict(
         con.execute(
             "SELECT player_tag, puntos FROM clan_games_snapshots WHERE sesion_id = ? AND momento = 'inicio'",
@@ -349,9 +332,6 @@ def puntos_inicio_clan_games(con, sesion_id: int) -> dict[str, int]:
     )
 
 
-# Tope real de puntos individuales por edicion de Clan Games en el juego
-# actual -- si Supercell agrega mas tiers en el futuro y esto queda corto,
-# hay que subirlo aca.
 PUNTOS_MAXIMOS_CLAN_GAMES = 10000
 
 
@@ -371,15 +351,9 @@ def resultado_clan_games(con, sesion_id: int):
     resultados = []
     for tag, nombre, puntos_cierre in cierre:
         if tag in inicio:
-            # El achievement es acumulado de toda la vida, no exclusivo de
-            # esta edicion -- si alguien ya venia con puntos sin cerrar de
-            # una edicion anterior (sesion vieja nunca cerrada, por ejemplo),
-            # la resta cruda puede pasarse del tope real del juego. Se topea
-            # aca en vez de confiar en la resta a lo bruto.
             puntos = min(puntos_cierre - inicio[tag], PUNTOS_MAXIMOS_CLAN_GAMES)
             resultados.append((tag, nombre, puntos))
         else:
-            # se unio al clan a mitad del evento, no le alcanzamos a sacar la foto de inicio
             resultados.append((tag, nombre, None))
     return resultados
 
@@ -410,9 +384,7 @@ def registrar_reputacion_clan_games(con, temporada, resultados):
 
 
 def sincronizar_donaciones(con, temporada, miembros):
-    """miembros: tuplas (tag, nombre, donaciones). Se reemplaza el valor de la
-    temporada en vez de sumarlo, porque la API ya da el acumulado de la
-    temporada en curso (se resetea sola cuando resetea la temporada)."""
+    """miembros: tuplas (tag, nombre, donaciones). La API ya da el acumulado de la temporada."""
     fecha = datetime.now(timezone.utc).isoformat()
     filas = [
         (
@@ -471,9 +443,6 @@ def ranking_reputacion(con, temporada):
 # ---- vinculos de WhatsApp ---------------------------------------------------
 
 def vincular_wa(con, wa_jid: str, player_tag: str, player_name: str):
-    # PK compuesta (player_tag, wa_jid): relacion muchos-a-muchos real.
-    # Un numero puede tener varias cuentas (multicuenta), y una cuenta
-    # puede tener varios numeros (ej. una pareja compartiendo una cuenta).
     con.execute(
         "INSERT INTO vinculos_wa (player_tag, wa_jid, player_name, fecha) VALUES (?, ?, ?, ?) "
         "ON CONFLICT(player_tag, wa_jid) DO UPDATE SET "
@@ -580,9 +549,7 @@ def marcar_temporada_cierre_avisado(con, temporada: str):
 
 
 def ultimo_recordatorio_automatico(con) -> str | None:
-    """ISO datetime del ultimo envio real de recordatorio_automatico, o None
-    si nunca se mando ninguno. Sirve para no repetirlo si el bot reinicia
-    (tasks.loop dispara una vez apenas arranca) antes de que pasen las 4h."""
+    """ISO datetime del ultimo recordatorio_automatico enviado, o None."""
     fila = con.execute("SELECT ultimo_envio FROM recordatorios_automaticos WHERE id = 1").fetchone()
     return fila[0] if fila else None
 
@@ -598,8 +565,7 @@ def marcar_recordatorio_automatico_enviado(con):
 
 
 def jids_por_tag(con) -> dict:
-    """player_tag -> lista de wa_jid vinculados a esa cuenta (puede ser mas
-    de uno, ej. una pareja compartiendo una misma cuenta)."""
+    """player_tag -> lista de wa_jid vinculados."""
     filas = con.execute("SELECT player_tag, wa_jid FROM vinculos_wa").fetchall()
     resultado: dict[str, list[str]] = {}
     for tag, jid in filas:
@@ -608,7 +574,6 @@ def jids_por_tag(con) -> dict:
 
 
 def jids_de_tag(con, player_tag: str) -> list[str]:
-    """Todos los numeros vinculados a una cuenta puntual."""
     filas = con.execute("SELECT wa_jid FROM vinculos_wa WHERE player_tag = ?", (player_tag,)).fetchall()
     return [jid for (jid,) in filas]
 

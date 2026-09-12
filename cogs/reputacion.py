@@ -45,8 +45,6 @@ class Reputacion(commands.Cog):
         ranking = sorted(resumen.items(), key=lambda kv: -kv[1]["total"])
 
         if temporada == temporada_actual:
-            # get_season_end() da la fecha de cierre de LA TEMPORADA EN CURSO
-            # nomas -- para una temporada pasada no aplica, ya cerro hace rato.
             fin = coc.utils.get_season_end().date().isoformat()
             encabezado = f"**Reputacion — temporada {temporada} a {fin}**\n"
         else:
@@ -116,8 +114,6 @@ class Reputacion(commands.Cog):
 
     @tasks.loop(hours=1)
     async def sincronizar_donaciones(self):
-        # las donaciones de la API ya son el acumulado de la temporada en
-        # curso, asi que no hay que ir sumando delta a delta como clan games
         try:
             clan = await self.coc_client.get_clan(config.CLAN_TAG)
             temporada = reputacion.temporada_actual()
@@ -153,11 +149,6 @@ class Reputacion(commands.Cog):
 
     @tasks.loop(hours=1)
     async def revisar_cierre_temporada(self):
-        # No hay que adivinar fechas: temporadas_registradas() ya trae todas
-        # las temporadas con eventos guardados. Cualquiera que no sea la
-        # actual y todavia no este marcada como avisada, cerro y falta
-        # avisarla -- normalmente va a ser como mucho una por tick, salvo que
-        # el bot haya estado caido durante mas de un cierre de temporada.
         try:
             temporada_actual = reputacion.temporada_actual()
             for temporada in storage.temporadas_registradas(self.db):

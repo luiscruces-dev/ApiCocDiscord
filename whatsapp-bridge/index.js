@@ -28,13 +28,7 @@ let conectado = false;
 let ultimoQR = null;
 const ultimoComandoPorRemitente = new Map();
 
-// IDs de mensajes que el propio bot mando (via /send o respondiendo un
-// comando). No se puede ignorar todo lo "fromMe" a lo bruto: mientras el
-// numero vinculado sea el personal de alguien del clan (no el dedicado
-// todavia), esa persona SI necesita poder escribir comandos de verdad
-// desde su propio numero, y WhatsApp marca eso tambien como fromMe. Asi
-// que solo se ignoran los mensajes que efectivamente somos nosotros
-// mismos mandando, identificados por su ID, no por ser fromMe en general.
+// No se filtra por fromMe: el dueño del numero vinculado tambien escribe comandos.
 const misMensajesEnviados = new Set();
 const MAX_MIS_MENSAJES = 500;
 
@@ -46,10 +40,7 @@ function registrarMensajePropio(id) {
   }
 }
 
-// Mensajes efimeros ("se borran solos") o "ver una vez" envuelven el
-// contenido real adentro de otro objeto -- si el grupo los tiene activados,
-// msg.message.conversation/extendedTextMessage quedan vacios y hay que
-// desenvolver primero.
+// Desenvuelve mensajes efimeros y de "ver una vez".
 function contenidoReal(msg) {
   const m = msg.message;
   return m?.ephemeralMessage?.message || m?.viewOnceMessageV2?.message || m?.viewOnceMessage?.message || m;
@@ -60,21 +51,11 @@ function extraerTexto(msg) {
   return contenido?.conversation || contenido?.extendedTextMessage?.text || null;
 }
 
-// Hay dos formas de "apuntar" a alguien en WhatsApp sin escribir su nombre:
-// citando/respondiendo su mensaje (contextInfo.participant), o escribiendo
-// "@" y eligiendolo del propio texto (contextInfo.mentionedJid). Se prioriza
-// la cita si hay las dos, pero cualquiera de las dos sirve -- el JID va tal
-// cual, sin reconstruirlo, mismo criterio que las menciones de /recordar.
 function extraerCitado(msg) {
   const contextInfo = contenidoReal(msg)?.extendedTextMessage?.contextInfo;
   return contextInfo?.participant || contextInfo?.mentionedJid?.[0] || null;
 }
 
-// Cuando mencionan a alguien escribiendo "@" en el texto (en vez de citar su
-// mensaje), WhatsApp deja el numero/lid crudo como texto plano (ej.
-// "@67126429765773"). Una vez identificada esa persona via extraerCitado, ese
-// pedazo de texto sobra en los argumentos del comando -- se lo quita para que
-// no termine metido en el motivo.
 function limpiarMenciones(texto, msg) {
   const mentionedJids = contenidoReal(msg)?.extendedTextMessage?.contextInfo?.mentionedJid || [];
   let limpio = texto;
@@ -84,12 +65,6 @@ function limpiarMenciones(texto, msg) {
   return limpio.trim();
 }
 
-// Alguien puede citar/mencionar al PROPIO bot como "victima" de /cagarse
-// para intentar que se autoinsulte. Se detecta de dos formas:
-// - Citando un mensaje que el bot mando (su ID esta en misMensajesEnviados,
-//   sin importar que JID/lid use el bot dentro de ese grupo puntual).
-// - Mencionandolo con "@" directo en el texto (ahi si hace falta comparar
-//   contra el numero real de la sesion, sock.user.id).
 function citaOMencionaAlBot(msg) {
   const contextInfo = contenidoReal(msg)?.extendedTextMessage?.contextInfo;
   if (!contextInfo) return false;
@@ -107,41 +82,26 @@ function dormir(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// Simula el tiempo que tardaria una persona en escribir el mensaje: un
-// "pensar" inicial random + tiempo por palabra, con piso y techo para que
-// nunca sea instantaneo ni eternamente largo. Todo esto es para que el
-// envio no tenga el patron "responde en 50ms, siempre exacto" tan tipico
-// de un bot -- no cambia que WhatsApp pueda reconocer la libreria a nivel
-// de protocolo, pero ayuda contra deteccion por comportamiento.
+// Simula el tiempo de tipeo de una persona.
 function calcularDelayEnvio(texto) {
   const palabras = (texto || "").trim().split(/\s+/).filter(Boolean).length;
-  const pensar = 800 + Math.random() * 1200; // 0.8-2s "leyendo/pensando"
-  const porPalabra = 120 + Math.random() * 130; // 120-250ms por palabra tipeada
+  const pensar = 800 + Math.random() * 1200;
+  const porPalabra = 120 + Math.random() * 130;
   const total = pensar + palabras * porPalabra;
-  return Math.min(Math.max(total, 1200), 8000); // entre 1.2s y 8s
+  return Math.min(Math.max(total, 1200), 8000);
 }
 
-// Punto unico de envio al grupo: manda presencia "escribiendo...", espera
-// el delay simulado, y recien ahi manda el mensaje. Usado tanto para
-// responder comandos como para /send (avisos automaticos).
 async function enviarConDelay(jid, contenido, opciones = {}) {
   try {
     await sock.sendPresenceUpdate("composing", jid);
-  } catch (err) {
-    // no es critico si esto falla, el mensaje se manda igual
-  }
+  } catch {}
   await dormir(calcularDelayEnvio(contenido.text));
   try {
     await sock.sendPresenceUpdate("paused", jid);
-  } catch (err) {
-    // idem
-  }
+  } catch {}
   return sock.sendMessage(jid, contenido, opciones);
 }
 
-// Comandos de solo lectura escritos en el grupo (ej. "/miembros") se
-// reenvian al bot de Discord, que es el unico que habla con la API de
-// Clash y con la base de datos. Este puente solo traduce ida y vuelta.
 async function manejarMensajeEntrante(msg) {
   if (!GROUP_ID || msg.key.remoteJid !== GROUP_ID) return;
   if (misMensajesEnviados.has(msg.key.id)) return;
@@ -154,8 +114,6 @@ async function manejarMensajeEntrante(msg) {
   if (!nombre) return;
   const argumentos = limpiarMenciones(partes.join(" "), msg);
 
-  // Un remitente no puede disparar mas de un comando cada COMANDO_COOLDOWN_MS,
-  // para que nadie inunde el grupo insistiendo con el mismo comando.
   const remitente = msg.key.participant || msg.key.remoteJid;
   const ahora = Date.now();
   const ultimo = ultimoComandoPorRemitente.get(remitente) || 0;
@@ -195,11 +153,6 @@ async function manejarMensajeEntrante(msg) {
   }
 
   if (sock && conectado) {
-    // Los JIDs a mencionar (ej. /recordar etiquetando a quien vinculo su
-    // tag) vienen armados tal cual desde el bot de Discord — no se
-    // reconstruyen aca. WhatsApp direcciona a cada participante por
-    // @s.whatsapp.net o por @lid segun el caso, y adivinar mal el dominio
-    // hace que no se reconozca como mencion real (queda como texto suelto).
     const enviado = await enviarConDelay(GROUP_ID, { text: respuesta, mentions: menciones }, { quoted: msg });
     registrarMensajePropio(enviado?.key?.id);
   }
@@ -219,9 +172,6 @@ async function iniciarWhatsApp() {
   sock.ev.on("messages.upsert", ({ messages, type }) => {
     if (type !== "notify") return;
     for (const msg of messages) {
-      // Diagnostico: se puede sacar mas adelante, pero mientras se
-      // depura por que algunos mensajes del grupo no disparan comandos,
-      // ayuda ver la forma real de cada mensaje que llega al grupo.
       if (GROUP_ID && msg.key.remoteJid === GROUP_ID) {
         console.log(
           "MSG_DEBUG",
@@ -343,9 +293,7 @@ app.get("/grupos", autenticar, async (req, res) => {
   }
 });
 
-// Debug: JIDs reales de los participantes del grupo configurado. Sirve para
-// diagnosticar menciones que no resaltan (WhatsApp a veces direcciona por
-// @lid en vez del numero de telefono @s.whatsapp.net).
+// Debug: JIDs reales de los participantes del grupo.
 app.get("/participantes", autenticar, async (req, res) => {
   if (!sock || !conectado) {
     return res.status(503).json({ error: "WhatsApp no esta conectado todavia" });
@@ -368,8 +316,6 @@ app.get("/participantes", autenticar, async (req, res) => {
   }
 });
 
-// Solo localhost: el bot de Discord vive en el mismo servidor, no hace
-// falta (ni conviene) exponer esto a internet.
 app.listen(PORT, "127.0.0.1", () => {
   console.log(`Puente de WhatsApp escuchando en 127.0.0.1:${PORT}`);
 });
